@@ -1,0 +1,238 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Pencil, Trash2, ExternalLink } from 'lucide-react';
+import Button from '../../components/UI/Button.jsx';
+import Badge from '../../components/UI/Badge.jsx';
+import EmptyState from '../../components/UI/EmptyState.jsx';
+import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import { accountsApi } from '../../api/accounts.js';
+import { useToast } from '../../context/ToastContext.jsx';
+import { BUSINESS_UNITS, INDUSTRIES } from '../../utils/constants.js';
+import { formatDate } from '../../utils/formatDate.js';
+
+const BU_COLOURS = {
+  'ASC': 'bg-blue-100 text-blue-700',
+  'Simply Seated': 'bg-teal-100 text-teal-700',
+};
+
+const PAGE_SIZE = 25;
+
+export default function AccountsList() {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
+  const [buFilter, setBuFilter] = useState('');
+  const [industryFilter, setIndustryFilter] = useState('');
+  const [page, setPage] = useState(1);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const fetchAccounts = useCallback(() => {
+    setLoading(true);
+    const params = {};
+    if (buFilter) params.business_unit = buFilter;
+    if (industryFilter) params.industry = industryFilter;
+    if (search) params.search = search;
+
+    accountsApi.getAll(params)
+      .then(res => { setAccounts(res.data.data || []); setPage(1); })
+      .catch(() => addToast('Failed to load accounts', 'error'))
+      .finally(() => setLoading(false));
+  }, [search, buFilter, industryFilter]);
+
+  useEffect(() => {
+    const t = setTimeout(fetchAccounts, search ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [fetchAccounts, search]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await accountsApi.delete(deleteTarget.id);
+      addToast('Account deleted', 'success');
+      setDeleteTarget(null);
+      setSelectedIds([]);
+      fetchAccounts();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Failed to delete', 'error');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Delete ${selectedIds.length} record(s)? This cannot be undone.`)) return;
+    // allSettled — attempt every delete even if one fails; always refresh afterwards
+    const outcomes = await Promise.allSettled(selectedIds.map(id => accountsApi.delete(id)));
+    const deleted = outcomes.filter(o => o.status === 'fulfilled').length;
+    const failed = outcomes.length - deleted;
+    setSelectedIds([]);
+    fetchAccounts();
+    if (failed === 0) addToast(`${deleted} record(s) deleted`, 'success');
+    else if (deleted === 0) addToast(`Could not delete ${failed} record(s)`, 'error');
+    else addToast(`${deleted} deleted · ${failed} could not be deleted`, 'error');
+  };
+
+  const filtersActive = buFilter || industryFilter || search;
+  const totalPages = Math.ceil(accounts.length / PAGE_SIZE);
+  const paginated = accounts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const start = accounts.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, accounts.length);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Accounts</h2>
+          <span className="bg-slate-100 text-slate-500 text-xs font-montserrat font-semibold px-2 py-0.5 rounded-full">{accounts.length}</span>
+        </div>
+        <Button onClick={() => navigate('/accounts/new')}>+ New Account</Button>
+      </div>
+
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search accounts..."
+          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 w-56"
+        />
+        <select
+          value={buFilter}
+          onChange={e => setBuFilter(e.target.value)}
+          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+        >
+          <option value="">All Business Units</option>
+          {BUSINESS_UNITS.map(bu => <option key={bu}>{bu}</option>)}
+        </select>
+        <select
+          value={industryFilter}
+          onChange={e => setIndustryFilter(e.target.value)}
+          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+        >
+          <option value="">All Industries</option>
+          {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
+        </select>
+        {filtersActive && (
+          <button onClick={() => { setSearch(''); setBuFilter(''); setIndustryFilter(''); }} className="text-xs text-arkalon-blue hover:underline font-opensans">
+            Clear filters
+          </button>
+        )}
+        {selectedIds.length > 0 && (
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
+          >
+            <Trash2 size={14} />
+            Delete {selectedIds.length} selected
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
+        {loading ? (
+          <div className="p-8 space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
+        ) : accounts.length === 0 ? (
+          <EmptyState title="No accounts yet" description="Create accounts to group your contacts and deals." action={() => navigate('/accounts/new')} actionLabel="Create your first account" />
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-arkalon-lightgrey">
+              <tr>
+                <th className="px-3 py-2.5 w-8">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={selectedIds.length === accounts.length && accounts.length > 0}
+                    onChange={(e) => setSelectedIds(e.target.checked ? accounts.map(r => r.id) : [])}
+                  />
+                </th>
+                {['Account Name', 'Business Unit', 'Industry', 'Phone', 'Website', 'Employees', 'Open Deals', 'Created', 'Actions'].map(col => (
+                  <th key={col} className="px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((account, idx) => (
+                <tr key={account.id} className={`border-b border-arkalon-lightgrey h-11 hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}>
+                  <td className="px-3">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selectedIds.includes(account.id)}
+                      onChange={(e) => setSelectedIds(prev =>
+                        e.target.checked ? [...prev, account.id] : prev.filter(id => id !== account.id)
+                      )}
+                    />
+                  </td>
+                  <td className="px-3 whitespace-nowrap">
+                    <button onClick={() => navigate(`/accounts/${account.id}`)} className="font-semibold text-arkalon-blue hover:underline font-opensans text-sm">
+                      {account.name}
+                    </button>
+                  </td>
+                  <td className="px-3">
+                    {account.business_unit && <Badge className={BU_COLOURS[account.business_unit] || 'bg-gray-100 text-gray-600'}>{account.business_unit}</Badge>}
+                  </td>
+                  <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{account.industry || '—'}</td>
+                  <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{account.phone || '—'}</td>
+                  <td className="px-3 font-opensans">
+                    {account.website ? (
+                      <a href={account.website.startsWith('http') ? account.website : `https://${account.website}`} target="_blank" rel="noopener noreferrer" className="text-arkalon-blue hover:underline flex items-center gap-1">
+                        {account.website} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : '—'}
+                  </td>
+                  <td className="px-3 text-slate-600 font-opensans text-center">{account.employee_count || '—'}</td>
+                  <td className="px-3 text-center">
+                    {account.open_deals_count > 0 ? (
+                      <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">{account.open_deals_count}</span>
+                    ) : (
+                      <span className="text-slate-400 text-xs font-opensans">0</span>
+                    )}
+                  </td>
+                  <td className="px-3 text-slate-500 font-opensans whitespace-nowrap">{formatDate(account.created_at)}</td>
+                  <td className="px-3">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => navigate(`/accounts/${account.id}/edit`)} className="p-1 text-slate-400 hover:text-arkalon-blue transition-colors" title="Edit">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setDeleteTarget(account)} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {accounts.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-xs text-slate-500 font-opensans">Showing {start}–{end} of {accounts.length}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs font-opensans border border-arkalon-lightgrey rounded bg-white hover:bg-slate-50 disabled:opacity-40">Prev</button>
+            <span className="text-xs text-slate-600 font-opensans">{page} / {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 text-xs font-opensans border border-arkalon-lightgrey rounded bg-white hover:bg-slate-50 disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Account?"
+        message={`Delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        loading={deleteLoading}
+      />
+    </div>
+  );
+}
