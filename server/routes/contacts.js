@@ -1,9 +1,9 @@
 const express = require('express');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const router = express.Router();
 
 // GET /api/contacts
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { business_unit, search, account_id } = req.query;
 
@@ -13,21 +13,21 @@ router.get('/', (req, res) => {
     if (business_unit) { conditions.push('c.business_unit = ?'); params.push(business_unit); }
     if (account_id) { conditions.push('c.account_id = ?'); params.push(account_id); }
     if (search) {
-      conditions.push('(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ?)');
+      conditions.push('(c.first_name ILIKE ? OR c.last_name ILIKE ? OR c.email ILIKE ?)');
       const s = `%${search}%`;
       params.push(s, s, s);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const contacts = db.prepare(`
+    const { rows: contacts } = await pool.query(P(`
       SELECT c.*, a.name as account_name, u.name as contact_owner_name
       FROM contacts c
       LEFT JOIN accounts a ON c.account_id = a.id
       LEFT JOIN users u ON c.contact_owner_id = u.id
       ${where}
       ORDER BY c.last_name ASC, c.first_name ASC
-    `).all(...params);
+    `), params);
 
     res.json({ success: true, data: contacts, total: contacts.length });
   } catch (err) {
@@ -36,24 +36,25 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/contacts/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const contact = db.prepare(`
+    const contactResult = await pool.query(P(`
       SELECT c.*, a.name as account_name, u.name as contact_owner_name
       FROM contacts c
       LEFT JOIN accounts a ON c.account_id = a.id
       LEFT JOIN users u ON c.contact_owner_id = u.id
       WHERE c.id = ?
-    `).get(req.params.id);
+    `), [req.params.id]);
+    const contact = contactResult.rows[0];
     if (!contact) return res.status(404).json({ success: false, error: 'Contact not found' });
 
-    const deals = db.prepare(`
+    const { rows: deals } = await pool.query(P(`
       SELECT d.id, d.deal_name, d.stage, d.gross_total_value, d.close_date, dc.role
       FROM deal_contacts dc
       JOIN deals d ON dc.deal_id = d.id
       WHERE dc.contact_id = ?
       ORDER BY d.created_at DESC
-    `).all(req.params.id);
+    `), [req.params.id]);
 
     res.json({ success: true, data: { ...contact, deals } });
   } catch (err) {
@@ -62,7 +63,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/contacts
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       account_id, salutation, first_name, last_name, title, email, phone,
@@ -71,31 +72,32 @@ router.post('/', (req, res) => {
 
     if (!last_name) return res.status(400).json({ success: false, error: 'Last name is required' });
 
-    const result = db.prepare(`
+    const insert = await pool.query(P(`
       INSERT INTO contacts (account_id, salutation, first_name, last_name, title, email, phone,
         mobile, linkedin_url, department, business_unit, contact_owner_id, description)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      RETURNING id
+    `), [
       account_id || null, salutation, first_name, last_name, title, email, phone,
       mobile, linkedin_url, department, business_unit, contact_owner_id || req.user.id, description,
-    );
+    ]);
 
-    const contact = db.prepare(`
+    const { rows } = await pool.query(P(`
       SELECT c.*, a.name as account_name
       FROM contacts c LEFT JOIN accounts a ON c.account_id = a.id
       WHERE c.id = ?
-    `).get(result.lastInsertRowid);
-    res.status(201).json({ success: true, data: contact });
+    `), [insert.rows[0].id]);
+    res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // PUT /api/contacts/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Contact not found' });
+    const existing = await pool.query(P('SELECT id FROM contacts WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Contact not found' });
 
     const fields = [
       'account_id', 'salutation', 'first_name', 'last_name', 'title', 'email',
@@ -106,36 +108,46 @@ router.put('/:id', (req, res) => {
     if (updates.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });
 
     const setClause = updates.map(f => `${f} = ?`).join(', ');
-    db.prepare(`UPDATE contacts SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .run(...updates.map(f => req.body[f]), req.params.id);
+    await pool.query(
+      P(`UPDATE contacts SET ${setClause}, updated_at = NOW() WHERE id = ?`),
+      [...updates.map(f => req.body[f]), req.params.id]
+    );
 
-    const contact = db.prepare(`
+    const { rows } = await pool.query(P(`
       SELECT c.*, a.name as account_name
       FROM contacts c LEFT JOIN accounts a ON c.account_id = a.id
       WHERE c.id = ?
-    `).get(req.params.id);
-    res.json({ success: true, data: contact });
+    `), [req.params.id]);
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // DELETE /api/contacts/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Contact not found' });
+    const existing = await pool.query(P('SELECT id FROM contacts WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Contact not found' });
 
-    const deleteContactTx = db.transaction((id) => {
-      db.prepare('DELETE FROM notes WHERE contact_id = ?').run(id);
-      db.prepare('DELETE FROM activities WHERE contact_id = ?').run(id);
-      db.prepare('DELETE FROM tasks WHERE contact_id = ?').run(id);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const id = req.params.id;
+      await client.query('DELETE FROM notes WHERE contact_id = $1', [id]);
+      await client.query('DELETE FROM activities WHERE contact_id = $1', [id]);
+      await client.query('DELETE FROM tasks WHERE contact_id = $1', [id]);
       // leads.converted_contact_id references contacts(id) with no ON DELETE rule —
       // clear it first so a contact created via lead conversion can be deleted.
-      db.prepare('UPDATE leads SET converted_contact_id = NULL WHERE converted_contact_id = ?').run(id);
-      db.prepare('DELETE FROM contacts WHERE id = ?').run(id);
-    });
-    deleteContactTx(req.params.id);
+      await client.query('UPDATE leads SET converted_contact_id = NULL WHERE converted_contact_id = $1', [id]);
+      await client.query('DELETE FROM contacts WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, message: 'Contact deleted' });
   } catch (err) {

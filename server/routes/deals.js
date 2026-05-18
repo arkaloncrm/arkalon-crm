@@ -1,6 +1,6 @@
 const express = require('express');
 const { DateTime } = require('luxon');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const { STAGE_MAP, calculateDealFinancials, commissionBasisString } = require('../utils/dealFinancials');
 const router = express.Router();
 
@@ -25,9 +25,9 @@ const ALLOWED_DEAL_SORT_FIELDS = [
 ];
 
 // GET /api/deals/summary/by-bu — MUST be before /summary and /:id
-router.get('/summary/by-bu', (req, res) => {
+router.get('/summary/by-bu', async (req, res) => {
   try {
-    const data = db.prepare(`
+    const { rows: data } = await pool.query(`
       SELECT
         business_unit,
         COUNT(*) AS deal_count,
@@ -37,7 +37,7 @@ router.get('/summary/by-bu', (req, res) => {
       WHERE stage NOT IN ('Closed Won', 'Closed Lost')
         AND business_unit IS NOT NULL
       GROUP BY business_unit
-    `).all();
+    `);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -45,9 +45,9 @@ router.get('/summary/by-bu', (req, res) => {
 });
 
 // GET /api/deals/summary — MUST be before /:id
-router.get('/summary', (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
-    const row = db.prepare(`
+    const { rows } = await pool.query(`
       SELECT
         COUNT(*) AS open_deal_count,
         COALESCE(SUM(gross_total_value), 0) AS open_gross_total,
@@ -55,15 +55,15 @@ router.get('/summary', (req, res) => {
         COALESCE(SUM(total_contract_earnings), 0) AS projected_commission_total
       FROM deals
       WHERE stage NOT IN ('Closed Won', 'Closed Lost')
-    `).get();
-    res.json({ success: true, data: row });
+    `);
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // GET /api/deals/closing-soon — MUST be before /:id
-router.get('/closing-soon', (req, res) => {
+router.get('/closing-soon', async (req, res) => {
   try {
     const rawDays = Number.parseInt(req.query.days, 10);
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 90) : 30;
@@ -106,7 +106,7 @@ router.get('/closing-soon', (req, res) => {
 
     sql += ` ORDER BY deals.close_date ASC`;
 
-    const deals = db.prepare(sql).all(...params);
+    const { rows: deals } = await pool.query(P(sql), params);
     res.json({ success: true, data: deals });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -114,12 +114,12 @@ router.get('/closing-soon', (req, res) => {
 });
 
 // GET /api/deals/stale — MUST be before /:id
-router.get('/stale', (req, res) => {
+router.get('/stale', async (req, res) => {
   try {
     const rawDays = Number.parseInt(req.query.days, 10);
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 90) : 14;
 
-    // SQLite stores timestamps as UTC strings — convert before formatting.
+    // Timestamps are stored as UTC — convert before formatting.
     const thresholdStr = DateTime.now()
       .setZone('Australia/Sydney')
       .startOf('day')
@@ -155,7 +155,7 @@ router.get('/stale', (req, res) => {
             SELECT created_at AS touch_date FROM activities WHERE deal_id = deals.id
             UNION ALL
             SELECT created_at AS touch_date FROM notes WHERE deal_id = deals.id
-          )
+          ) touches
         ) AS last_touch_date,
         (
           SELECT MIN(due_datetime)
@@ -172,19 +172,17 @@ router.get('/stale', (req, res) => {
       SELECT *,
         CASE
           WHEN last_touch_date IS NULL THEN NULL
-          ELSE CAST(
-            (julianday(?) - julianday(last_touch_date)) AS INTEGER
-          )
+          ELSE FLOOR(EXTRACT(EPOCH FROM (?::timestamp - last_touch_date)) / 86400)::integer
         END AS days_stale
       FROM (${innerSql}) sub
       WHERE sub.last_touch_date IS NULL
-         OR sub.last_touch_date < ?
+         OR sub.last_touch_date < ?::timestamp
       ORDER BY sub.close_date ASC
     `;
 
-    // Parameter order: julianday(?) → ...buFilter → sub.last_touch_date < ?
+    // Parameter order: ?::timestamp (today) → ...buFilter → sub.last_touch_date < ?
     const params = [todayUtcStr, ...innerParams, thresholdStr];
-    const staleDeals = db.prepare(wrappedSql).all(...params);
+    const { rows: staleDeals } = await pool.query(P(wrappedSql), params);
 
     res.json({ success: true, data: staleDeals });
   } catch (err) {
@@ -193,7 +191,7 @@ router.get('/stale', (req, res) => {
 });
 
 // GET /api/deals
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { business_unit, stage, account_id, forecast_category, product_id, search, open_only, sort_by, sort_dir, limit, offset } = req.query;
 
@@ -209,7 +207,7 @@ router.get('/', (req, res) => {
       params.push(Number(product_id));
     }
     if (search) {
-      whereClauses.push('deals.deal_name LIKE ?');
+      whereClauses.push('deals.deal_name ILIKE ?');
       params.push(`%${search}%`);
     }
     if (open_only === 'true') {
@@ -225,7 +223,7 @@ router.get('/', (req, res) => {
     const safeLimit = Math.min(parseInt(limit) || 100, 100);
     const safeOffset = parseInt(offset) || 0;
 
-    const deals = db.prepare(`
+    const { rows: deals } = await pool.query(P(`
       SELECT
         deals.id,
         deals.deal_name,
@@ -258,7 +256,7 @@ router.get('/', (req, res) => {
       ${where}
       ORDER BY ${safeSortBy} ${safeSortDir}
       LIMIT ? OFFSET ?
-    `).all(...params, safeLimit, safeOffset);
+    `), [...params, safeLimit, safeOffset]);
 
     res.json({ success: true, data: deals });
   } catch (err) {
@@ -267,10 +265,10 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/deals/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const deal = db.prepare(`
+    const dealResult = await pool.query(P(`
       SELECT
         deals.id,
         deals.deal_name,
@@ -301,11 +299,12 @@ router.get('/:id', (req, res) => {
       FROM deals
       LEFT JOIN accounts ON deals.account_id = accounts.id
       WHERE deals.id = ?
-    `).get(id);
+    `), [id]);
+    const deal = dealResult.rows[0];
 
     if (!deal) return res.status(404).json({ success: false, error: 'Deal not found' });
 
-    const line_items = db.prepare(`
+    const { rows: line_items } = await pool.query(P(`
       SELECT
         deal_line_items.id,
         deal_line_items.deal_id,
@@ -324,9 +323,9 @@ router.get('/:id', (req, res) => {
       FROM deal_line_items
       WHERE deal_line_items.deal_id = ?
       ORDER BY deal_line_items.id ASC
-    `).all(id);
+    `), [id]);
 
-    const contacts = db.prepare(`
+    const { rows: contacts } = await pool.query(P(`
       SELECT
         contacts.id,
         contacts.first_name,
@@ -339,7 +338,7 @@ router.get('/:id', (req, res) => {
       FROM deal_contacts
       JOIN contacts ON deal_contacts.contact_id = contacts.id
       WHERE deal_contacts.deal_id = ?
-    `).all(id);
+    `), [id]);
 
     res.json({
       success: true,
@@ -355,7 +354,7 @@ router.get('/:id', (req, res) => {
   }
 });
 
-function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
+async function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
   if (!safeBody.deal_name?.trim()) return { error: 'Deal name is required' };
   if (!['ASC', 'Simply Seated'].includes(safeBody.business_unit)) {
     return { error: 'business_unit must be ASC or Simply Seated' };
@@ -386,7 +385,11 @@ function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
   }
 
   if (safeBody.account_id) {
-    const account = db.prepare('SELECT id, business_unit FROM accounts WHERE id = ?').get(safeBody.account_id);
+    const accountResult = await pool.query(
+      P('SELECT id, business_unit FROM accounts WHERE id = ?'),
+      [safeBody.account_id]
+    );
+    const account = accountResult.rows[0];
     if (!account) return { error: 'Account not found' };
     if (account.business_unit !== 'Both' && account.business_unit !== safeBody.business_unit) {
       return { error: `Business unit mismatch: account is ${account.business_unit} but deal is ${safeBody.business_unit}` };
@@ -415,7 +418,11 @@ function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
     };
 
     if (item.product_id) {
-      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
+      const productResult = await pool.query(
+        P('SELECT * FROM products WHERE id = ?'),
+        [item.product_id]
+      );
+      const product = productResult.rows[0];
       if (!product) return { error: `Line item ${i + 1}: product ID ${item.product_id} not found` };
       if (product.business_unit !== safeBody.business_unit && product.business_unit !== 'Both') {
         return { error: `Line item ${i + 1}: product does not match deal business unit` };
@@ -444,7 +451,11 @@ function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
     if (seenContactIds.has(Number(cr.contact_id))) return { error: 'Duplicate contact in contact_roles' };
     seenContactIds.add(Number(cr.contact_id));
 
-    const contact = db.prepare('SELECT id, account_id FROM contacts WHERE id = ?').get(cr.contact_id);
+    const contactResult = await pool.query(
+      P('SELECT id, account_id FROM contacts WHERE id = ?'),
+      [cr.contact_id]
+    );
+    const contact = contactResult.rows[0];
     if (!contact) return { error: `Contact ID ${cr.contact_id} not found` };
 
     if (safeBody.account_id) {
@@ -458,46 +469,51 @@ function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
   return { resolvedLineItems, resolvedContactRoles };
 }
 
-function insertLineItems(dealId, lineItems) {
-  const stmt = db.prepare(`
-    INSERT INTO deal_line_items (
-      deal_id, product_id, product_name, sku, description,
-      quantity, unit_price, unit_type, line_total,
-      commission_pct, commission_amount, is_recurring
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+async function insertLineItems(client, dealId, lineItems) {
   for (const item of lineItems) {
     const line_total = Math.round(item.quantity * item.unit_price * 100) / 100;
     const item_commission_amount = Math.round(line_total * (Number(item.commission_pct) || 0) * 100) / 100;
-    stmt.run(
+    await client.query(P(`
+      INSERT INTO deal_line_items (
+        deal_id, product_id, product_name, sku, description,
+        quantity, unit_price, unit_type, line_total,
+        commission_pct, commission_amount, is_recurring
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `), [
       dealId, item.product_id || null, item.product_name, item.sku || null,
       item.description || null, item.quantity, item.unit_price,
       item.unit_type || null, line_total,
       item.commission_pct || null, item_commission_amount, item.is_recurring ? 1 : 0
+    ]);
+  }
+}
+
+async function insertContactRoles(client, dealId, contactRoles) {
+  for (const cr of contactRoles) {
+    await client.query(
+      P('INSERT INTO deal_contacts (deal_id, contact_id, role) VALUES (?, ?, ?)'),
+      [dealId, cr.contact_id, cr.role]
     );
   }
 }
 
-function insertContactRoles(dealId, contactRoles) {
-  const stmt = db.prepare('INSERT INTO deal_contacts (deal_id, contact_id, role) VALUES (?, ?, ?)');
-  for (const cr of contactRoles) {
-    stmt.run(dealId, cr.contact_id, cr.role);
-  }
-}
-
 // POST /api/deals
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { deal_owner_id: _stripped, ...safeBody } = req.body;
     const { line_items: rawLineItems = [], contact_roles: rawContactRoles = [] } = safeBody;
 
-    const validation = validateDealPayload(safeBody, rawLineItems, rawContactRoles);
+    const validation = await validateDealPayload(safeBody, rawLineItems, rawContactRoles);
     if (validation.error) return res.status(400).json({ success: false, error: validation.error });
     const { resolvedLineItems, resolvedContactRoles } = validation;
 
-    const createDealTx = db.transaction((dealData, lineItems, contactRoles, ownerId) => {
-      const financials = calculateDealFinancials(dealData, lineItems);
-      const result = db.prepare(`
+    const client = await pool.connect();
+    let dealId;
+    try {
+      await client.query('BEGIN');
+
+      const financials = calculateDealFinancials(safeBody, resolvedLineItems);
+      const result = await client.query(P(`
         INSERT INTO deals (
           deal_name, account_id, stage, probability, forecast_category,
           close_date, lead_source, business_unit, deal_type,
@@ -505,45 +521,44 @@ router.post('/', (req, res) => {
           commission_amount, commission_override_amount, contract_term_months,
           total_contract_earnings, weighted_value,
           description, next_action, next_action_date, deal_owner_id
-        ) VALUES (
-          @deal_name, @account_id, @stage, @probability, @forecast_category,
-          @close_date, @lead_source, @business_unit, @deal_type,
-          @gross_total_value, @monthly_recurring_revenue, @commission_percentage,
-          @commission_amount, @commission_override_amount, @contract_term_months,
-          @total_contract_earnings, @weighted_value,
-          @description, @next_action, @next_action_date, @deal_owner_id
-        )
-      `).run({
-        deal_name: dealData.deal_name,
-        account_id: dealData.account_id || null,
-        stage: dealData.stage,
-        probability: financials.probability,
-        forecast_category: financials.forecast_category,
-        close_date: dealData.close_date || null,
-        lead_source: dealData.lead_source || null,
-        business_unit: dealData.business_unit,
-        deal_type: dealData.deal_type || null,
-        gross_total_value: financials.gross_total_value,
-        monthly_recurring_revenue: financials.monthly_recurring_revenue,
-        commission_percentage: financials.commission_percentage,
-        commission_amount: financials.commission_amount,
-        commission_override_amount: normaliseOverrideAmount(dealData.commission_override_amount),
-        contract_term_months: dealData.contract_term_months || null,
-        total_contract_earnings: financials.total_contract_earnings,
-        weighted_value: financials.weighted_value,
-        description: dealData.description || null,
-        next_action: dealData.next_action || null,
-        next_action_date: dealData.next_action_date || null,
-        deal_owner_id: ownerId,
-      });
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id
+      `), [
+        safeBody.deal_name,
+        safeBody.account_id || null,
+        safeBody.stage,
+        financials.probability,
+        financials.forecast_category,
+        safeBody.close_date || null,
+        safeBody.lead_source || null,
+        safeBody.business_unit,
+        safeBody.deal_type || null,
+        financials.gross_total_value,
+        financials.monthly_recurring_revenue,
+        financials.commission_percentage,
+        financials.commission_amount,
+        normaliseOverrideAmount(safeBody.commission_override_amount),
+        safeBody.contract_term_months || null,
+        financials.total_contract_earnings,
+        financials.weighted_value,
+        safeBody.description || null,
+        safeBody.next_action || null,
+        safeBody.next_action_date || null,
+        req.user.id,
+      ]);
 
-      const dealId = result.lastInsertRowid;
-      insertLineItems(dealId, lineItems);
-      insertContactRoles(dealId, contactRoles);
-      return dealId;
-    });
+      dealId = result.rows[0].id;
+      await insertLineItems(client, dealId, resolvedLineItems);
+      await insertContactRoles(client, dealId, resolvedContactRoles);
 
-    const dealId = createDealTx(safeBody, resolvedLineItems, resolvedContactRoles, req.user.id);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
     res.status(201).json({ success: true, data: { id: dealId } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -551,70 +566,79 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/deals/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT id FROM deals WHERE id = ?').get(id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Deal not found' });
+    const existing = await pool.query(P('SELECT id FROM deals WHERE id = ?'), [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Deal not found' });
 
     const { deal_owner_id: _stripped, ...safeBody } = req.body;
     const { line_items: rawLineItems = [], contact_roles: rawContactRoles = [] } = safeBody;
 
-    const validation = validateDealPayload(safeBody, rawLineItems, rawContactRoles);
+    const validation = await validateDealPayload(safeBody, rawLineItems, rawContactRoles);
     if (validation.error) return res.status(400).json({ success: false, error: validation.error });
     const { resolvedLineItems, resolvedContactRoles } = validation;
 
-    const updateDealTx = db.transaction((id, dealData, lineItems, contactRoles) => {
-      const financials = calculateDealFinancials(dealData, lineItems);
-      db.prepare(`
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const financials = calculateDealFinancials(safeBody, resolvedLineItems);
+      await client.query(P(`
         UPDATE deals SET
-          deal_name = @deal_name, account_id = @account_id, stage = @stage,
-          probability = @probability, forecast_category = @forecast_category,
-          close_date = @close_date, lead_source = @lead_source,
-          business_unit = @business_unit, deal_type = @deal_type,
-          gross_total_value = @gross_total_value,
-          monthly_recurring_revenue = @monthly_recurring_revenue,
-          commission_percentage = @commission_percentage,
-          commission_amount = @commission_amount,
-          commission_override_amount = @commission_override_amount,
-          contract_term_months = @contract_term_months,
-          total_contract_earnings = @total_contract_earnings,
-          weighted_value = @weighted_value,
-          description = @description, next_action = @next_action,
-          next_action_date = @next_action_date,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = @id
-      `).run({
+          deal_name = ?, account_id = ?, stage = ?,
+          probability = ?, forecast_category = ?,
+          close_date = ?, lead_source = ?,
+          business_unit = ?, deal_type = ?,
+          gross_total_value = ?,
+          monthly_recurring_revenue = ?,
+          commission_percentage = ?,
+          commission_amount = ?,
+          commission_override_amount = ?,
+          contract_term_months = ?,
+          total_contract_earnings = ?,
+          weighted_value = ?,
+          description = ?, next_action = ?,
+          next_action_date = ?,
+          updated_at = NOW()
+        WHERE id = ?
+      `), [
+        safeBody.deal_name,
+        safeBody.account_id || null,
+        safeBody.stage,
+        financials.probability,
+        financials.forecast_category,
+        safeBody.close_date || null,
+        safeBody.lead_source || null,
+        safeBody.business_unit,
+        safeBody.deal_type || null,
+        financials.gross_total_value,
+        financials.monthly_recurring_revenue,
+        financials.commission_percentage,
+        financials.commission_amount,
+        normaliseOverrideAmount(safeBody.commission_override_amount),
+        safeBody.contract_term_months || null,
+        financials.total_contract_earnings,
+        financials.weighted_value,
+        safeBody.description || null,
+        safeBody.next_action || null,
+        safeBody.next_action_date || null,
         id,
-        deal_name: dealData.deal_name,
-        account_id: dealData.account_id || null,
-        stage: dealData.stage,
-        probability: financials.probability,
-        forecast_category: financials.forecast_category,
-        close_date: dealData.close_date || null,
-        lead_source: dealData.lead_source || null,
-        business_unit: dealData.business_unit,
-        deal_type: dealData.deal_type || null,
-        gross_total_value: financials.gross_total_value,
-        monthly_recurring_revenue: financials.monthly_recurring_revenue,
-        commission_percentage: financials.commission_percentage,
-        commission_amount: financials.commission_amount,
-        commission_override_amount: normaliseOverrideAmount(dealData.commission_override_amount),
-        contract_term_months: dealData.contract_term_months || null,
-        total_contract_earnings: financials.total_contract_earnings,
-        weighted_value: financials.weighted_value,
-        description: dealData.description || null,
-        next_action: dealData.next_action || null,
-        next_action_date: dealData.next_action_date || null,
-      });
+      ]);
 
-      db.prepare('DELETE FROM deal_line_items WHERE deal_id = ?').run(id);
-      insertLineItems(id, lineItems);
-      db.prepare('DELETE FROM deal_contacts WHERE deal_id = ?').run(id);
-      insertContactRoles(id, contactRoles);
-    });
+      await client.query(P('DELETE FROM deal_line_items WHERE deal_id = ?'), [id]);
+      await insertLineItems(client, id, resolvedLineItems);
+      await client.query(P('DELETE FROM deal_contacts WHERE deal_id = ?'), [id]);
+      await insertContactRoles(client, id, resolvedContactRoles);
 
-    updateDealTx(id, safeBody, resolvedLineItems, resolvedContactRoles);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
     res.json({ success: true, data: { id } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -622,24 +646,32 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/deals/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT id FROM deals WHERE id = ?').get(id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Deal not found' });
+    const existing = await pool.query(P('SELECT id FROM deals WHERE id = ?'), [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Deal not found' });
 
-    const deleteDealTx = db.transaction((id) => {
-      db.prepare('DELETE FROM notes WHERE deal_id = ?').run(id);
-      db.prepare('DELETE FROM activities WHERE deal_id = ?').run(id);
-      db.prepare('DELETE FROM tasks WHERE deal_id = ?').run(id);
-      db.prepare('DELETE FROM deal_line_items WHERE deal_id = ?').run(id);
-      db.prepare('DELETE FROM deal_contacts WHERE deal_id = ?').run(id);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM notes WHERE deal_id = $1', [id]);
+      await client.query('DELETE FROM activities WHERE deal_id = $1', [id]);
+      await client.query('DELETE FROM tasks WHERE deal_id = $1', [id]);
+      await client.query('DELETE FROM deal_line_items WHERE deal_id = $1', [id]);
+      await client.query('DELETE FROM deal_contacts WHERE deal_id = $1', [id]);
       // leads.converted_deal_id references deals(id) with no ON DELETE rule —
       // clear it first so a deal created via lead conversion can be deleted.
-      db.prepare('UPDATE leads SET converted_deal_id = NULL WHERE converted_deal_id = ?').run(id);
-      db.prepare('DELETE FROM deals WHERE id = ?').run(id);
-    });
-    deleteDealTx(id);
+      await client.query('UPDATE leads SET converted_deal_id = NULL WHERE converted_deal_id = $1', [id]);
+      await client.query('DELETE FROM deals WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -647,23 +679,27 @@ router.delete('/:id', (req, res) => {
 });
 
 // PATCH /api/deals/:id/stage
-router.patch('/:id/stage', (req, res) => {
+router.patch('/:id/stage', async (req, res) => {
   try {
     const { id } = req.params;
     const { stage } = req.body;
     if (!STAGE_MAP[stage]) return res.status(400).json({ success: false, error: 'Invalid stage' });
 
-    const existing = db.prepare('SELECT id, gross_total_value FROM deals WHERE id = ?').get(id);
+    const existingResult = await pool.query(
+      P('SELECT id, gross_total_value FROM deals WHERE id = ?'),
+      [id]
+    );
+    const existing = existingResult.rows[0];
     if (!existing) return res.status(404).json({ success: false, error: 'Deal not found' });
 
     const stageInfo = STAGE_MAP[stage];
     const weighted_value = Math.round((existing.gross_total_value || 0) * stageInfo.probability / 100 * 100) / 100;
 
-    db.prepare(`
+    await pool.query(P(`
       UPDATE deals
-      SET stage = ?, probability = ?, forecast_category = ?, weighted_value = ?, updated_at = CURRENT_TIMESTAMP
+      SET stage = ?, probability = ?, forecast_category = ?, weighted_value = ?, updated_at = NOW()
       WHERE id = ?
-    `).run(stage, stageInfo.probability, stageInfo.forecast_category, weighted_value, id);
+    `), [stage, stageInfo.probability, stageInfo.forecast_category, weighted_value, id]);
 
     res.json({ success: true });
   } catch (err) {

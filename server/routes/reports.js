@@ -1,16 +1,16 @@
 const express = require('express');
 const { DateTime } = require('luxon');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const router = express.Router();
 
-router.get('/summary', (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
-    const leadCount = db.prepare('SELECT COUNT(*) as count FROM leads WHERE converted = 0').get();
-    const contactCount = db.prepare('SELECT COUNT(*) as count FROM contacts').get();
-    const accountCount = db.prepare('SELECT COUNT(*) as count FROM accounts').get();
-    const dealCount = db.prepare("SELECT COUNT(*) as count FROM deals WHERE stage NOT IN ('Closed Won','Closed Lost')").get();
-    const pipeline = db.prepare("SELECT SUM(weighted_value) as total FROM deals WHERE stage NOT IN ('Closed Won','Closed Lost')").get();
-    const closedWon = db.prepare("SELECT SUM(total_contract_earnings) as total FROM deals WHERE stage = 'Closed Won'").get();
+    const leadCount = (await pool.query('SELECT COUNT(*) as count FROM leads WHERE converted = 0')).rows[0];
+    const contactCount = (await pool.query('SELECT COUNT(*) as count FROM contacts')).rows[0];
+    const accountCount = (await pool.query('SELECT COUNT(*) as count FROM accounts')).rows[0];
+    const dealCount = (await pool.query("SELECT COUNT(*) as count FROM deals WHERE stage NOT IN ('Closed Won','Closed Lost')")).rows[0];
+    const pipeline = (await pool.query("SELECT SUM(weighted_value) as total FROM deals WHERE stage NOT IN ('Closed Won','Closed Lost')")).rows[0];
+    const closedWon = (await pool.query("SELECT SUM(total_contract_earnings) as total FROM deals WHERE stage = 'Closed Won'")).rows[0];
 
     res.json({
       success: true,
@@ -28,28 +28,28 @@ router.get('/summary', (req, res) => {
   }
 });
 
-router.get('/pipeline-by-stage', (req, res) => {
+router.get('/pipeline-by-stage', async (req, res) => {
   try {
-    const data = db.prepare(`
+    const { rows: data } = await pool.query(`
       SELECT stage, COUNT(*) as count, SUM(gross_total_value) as total_value
       FROM deals
       WHERE stage NOT IN ('Closed Won', 'Closed Lost')
       GROUP BY stage
-    `).all();
+    `);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-router.get('/pipeline-by-bu', (req, res) => {
+router.get('/pipeline-by-bu', async (req, res) => {
   try {
-    const data = db.prepare(`
+    const { rows: data } = await pool.query(`
       SELECT business_unit, COUNT(*) as count, SUM(weighted_value) as weighted_total
       FROM deals
       WHERE stage NOT IN ('Closed Won', 'Closed Lost')
       GROUP BY business_unit
-    `).all();
+    `);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -57,14 +57,16 @@ router.get('/pipeline-by-bu', (req, res) => {
 });
 
 // GET /api/reports/lead-source-performance — single merged endpoint
-router.get('/lead-source-performance', (req, res) => {
+router.get('/lead-source-performance', async (req, res) => {
   try {
     const validBUs = ['ASC', 'Simply Seated'];
     const buFilter = validBUs.includes(req.query.business_unit) ? req.query.business_unit : null;
 
     // Defensive schema check: verify deals.lead_source exists before querying
-    const dealColumns = db.pragma('table_info(deals)').map(c => c.name);
-    const dealHasLeadSource = dealColumns.includes('lead_source');
+    const colResult = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'deals'"
+    );
+    const dealHasLeadSource = colResult.rows.some(c => c.column_name === 'lead_source');
 
     let leadSql = `
       SELECT
@@ -81,7 +83,7 @@ router.get('/lead-source-performance', (req, res) => {
       leadParams.push(buFilter);
     }
     leadSql += ` GROUP BY lead_source, business_unit`;
-    const leadRows = db.prepare(leadSql).all(...leadParams);
+    const leadRows = (await pool.query(P(leadSql), leadParams)).rows;
 
     let dealRows = [];
     if (dealHasLeadSource) {
@@ -100,7 +102,7 @@ router.get('/lead-source-performance', (req, res) => {
         dealParams.push(buFilter);
       }
       dealSql += ` GROUP BY lead_source, business_unit`;
-      dealRows = db.prepare(dealSql).all(...dealParams);
+      dealRows = (await pool.query(P(dealSql), dealParams)).rows;
     }
 
     const map = {};
@@ -144,7 +146,7 @@ router.get('/lead-source-performance', (req, res) => {
 });
 
 // GET /api/reports/activity-summary
-router.get('/activity-summary', (req, res) => {
+router.get('/activity-summary', async (req, res) => {
   try {
     const rawDays = Number.parseInt(req.query.period, 10);
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 90) : 30;
@@ -152,7 +154,7 @@ router.get('/activity-summary', (req, res) => {
     const validBUs = ['ASC', 'Simply Seated'];
     const buFilter = validBUs.includes(req.query.business_unit) ? req.query.business_unit : null;
 
-    // SQLite stores timestamps as UTC strings — convert before formatting.
+    // Timestamps are stored as UTC — convert before formatting.
     const thresholdStr = DateTime.now()
       .setZone('Australia/Sydney')
       .startOf('day')
@@ -176,7 +178,7 @@ router.get('/activity-summary', (req, res) => {
       activityParams.push(buFilter);
     }
     activitySql += ` GROUP BY type, business_unit ORDER BY count DESC`;
-    const byType = db.prepare(activitySql).all(...activityParams);
+    const byType = (await pool.query(P(activitySql), activityParams)).rows;
 
     // Overdue tasks — Luxon UTC string, consistent with task date handling
     const nowUtcStr = DateTime.now().toUTC().toFormat('yyyy-LL-dd HH:mm:ss');
@@ -189,7 +191,7 @@ router.get('/activity-summary', (req, res) => {
       overdueSql += ` AND business_unit = ?`;
       overdueParams.push(buFilter);
     }
-    const overdue = db.prepare(overdueSql).get(...overdueParams);
+    const overdue = (await pool.query(P(overdueSql), overdueParams)).rows[0];
 
     let completedSql = `
       SELECT COUNT(*) AS count FROM tasks
@@ -200,7 +202,7 @@ router.get('/activity-summary', (req, res) => {
       completedSql += ` AND business_unit = ?`;
       completedParams.push(buFilter);
     }
-    const completedTasks = db.prepare(completedSql).get(...completedParams);
+    const completedTasks = (await pool.query(P(completedSql), completedParams)).rows[0];
 
     res.json({ success: true, data: { byType, overdue, completedTasks, days } });
   } catch (err) {

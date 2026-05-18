@@ -1,19 +1,23 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const { authMiddleware, JWT_SECRET } = require('./authMiddleware');
 
 const router = express.Router();
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ success: false, error: 'Email and password are required' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
+  const { rows } = await pool.query(
+    P('SELECT * FROM users WHERE email = ?'),
+    [email.toLowerCase().trim()]
+  );
+  const user = rows[0];
   if (!user) {
     return res.status(401).json({ success: false, error: 'Invalid credentials' });
   }
@@ -23,7 +27,7 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ success: false, error: 'Invalid credentials' });
   }
 
-  db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+  await pool.query(P('UPDATE users SET last_login = NOW() WHERE id = ?'), [user.id]);
 
   const token = jwt.sign(
     { id: user.id, email: user.email, name: user.name, role: user.role, avatar_initials: user.avatar_initials },
@@ -47,8 +51,12 @@ router.post('/login', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id, name, email, role, avatar_initials, created_at, last_login FROM users WHERE id = ?').get(req.user.id);
+router.get('/me', authMiddleware, async (req, res) => {
+  const { rows } = await pool.query(
+    P('SELECT id, name, email, role, avatar_initials, created_at, last_login FROM users WHERE id = ?'),
+    [req.user.id]
+  );
+  const user = rows[0];
   if (!user) return res.status(404).json({ success: false, error: 'User not found' });
   return res.json({ success: true, data: user });
 });

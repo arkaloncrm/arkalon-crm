@@ -1,18 +1,10 @@
-const database = require('../../database.js');
-const db = database.db || database;
+const { pool, P } = require('../../database');
 
-function runMigration() {
-  const columns = db.pragma('table_info(deals)').map(col => col.name);
-
-  if (!columns.includes('monthly_recurring_revenue')) {
-    db.prepare('ALTER TABLE deals ADD COLUMN monthly_recurring_revenue REAL DEFAULT 0').run();
-    console.log('[Migration 004] Added deals.monthly_recurring_revenue');
-  }
-
-  if (!columns.includes('commission_override_amount')) {
-    db.prepare('ALTER TABLE deals ADD COLUMN commission_override_amount REAL').run();
-    console.log('[Migration 004] Added deals.commission_override_amount (nullable)');
-  }
+async function runMigration() {
+  // These columns now ship in the base schema; ADD COLUMN IF NOT EXISTS keeps
+  // this a safe no-op on fresh databases and a real migration on older ones.
+  await pool.query('ALTER TABLE deals ADD COLUMN IF NOT EXISTS monthly_recurring_revenue NUMERIC(15,2) DEFAULT 0');
+  await pool.query('ALTER TABLE deals ADD COLUMN IF NOT EXISTS commission_override_amount NUMERIC(15,2)');
 
   const stageMappings = [
     { from: 'New',    to: 'Prospect' },
@@ -21,10 +13,12 @@ function runMigration() {
   ];
 
   for (const { from, to } of stageMappings) {
-    const affected = db.prepare('SELECT COUNT(*) AS count FROM deals WHERE stage = ?').get(from);
-    if (affected && affected.count > 0) {
-      db.prepare('UPDATE deals SET stage = ? WHERE stage = ?').run(to, from);
-      console.log(`[Migration 004] Normalised ${affected.count} deal(s): stage '${from}' → '${to}'`);
+    const { rowCount } = await pool.query(
+      P('UPDATE deals SET stage = ? WHERE stage = ?'),
+      [to, from]
+    );
+    if (rowCount > 0) {
+      console.log(`[Migration 004] Normalised ${rowCount} deal(s): stage '${from}' -> '${to}'`);
     }
   }
 }

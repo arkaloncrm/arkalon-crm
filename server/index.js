@@ -1,7 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { initDatabase } = require('./database');
+const path = require('path');
+const { initDb } = require('./database');
+const { runMigration: migration004 } = require('./database/migrations/004_deals_columns');
+const { runMigration: migration006 } = require('./database/migrations/006_products_columns');
 const authRouter = require('./auth/authRouter');
 const { authMiddleware } = require('./auth/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
@@ -41,35 +44,43 @@ app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/notes', authMiddleware, notesRouter);
 app.use('/api/settings', authMiddleware, settingsRouter);
 
+// Serve the built React client in production (Railway single-service deploy)
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientDist));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 app.use(errorHandler);
 
-initDatabase();
+async function start() {
+  await initDb();
+  await migration004();
+  await migration006();
 
-const { runMigration: migration004 } = require('./database/migrations/004_deals_columns');
-migration004();
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('╔════════════════════════════════════════════╗');
+    console.log('║         ARKALON CRM — SERVER READY         ║');
+    console.log('╠════════════════════════════════════════════╣');
+    console.log(`║  Server running on port ${PORT}                ║`);
+    console.log('║  Database: PostgreSQL (pg)                 ║');
+    console.log('╠════════════════════════════════════════════╣');
+    console.log('║  Default login credentials:                ║');
+    console.log('║  Email: stuart@arkalon.com.au              ║');
+    console.log('║  Password: Arkalon2024!                    ║');
+    console.log('╠════════════════════════════════════════════╣');
+    console.log('║  AI Ingest: POST /api/ai/ingest            ║');
+    console.log('║  API Key: arkalon-ai-key-2024              ║');
+    console.log('║  Header: X-API-Key: arkalon-ai-key-2024   ║');
+    console.log('╚════════════════════════════════════════════╝');
+    console.log('');
+  });
+}
 
-const { runMigration: migration006 } = require('./database/migrations/006_products_columns');
-migration006();
-
-app.listen(PORT, () => {
-  console.log('');
-  console.log('╔════════════════════════════════════════════╗');
-  console.log('║         ARKALON CRM — SERVER READY         ║');
-  console.log('╠════════════════════════════════════════════╣');
-  console.log(`║  Server running on port ${PORT}                ║`);
-  console.log('║  Database: server/arkalon.db               ║');
-  console.log('║  WAL mode: confirmed active                ║');
-  console.log('║  Foreign keys: ON                          ║');
-  console.log('╠════════════════════════════════════════════╣');
-  console.log('║  Default login credentials:                ║');
-  console.log('║  Email: stuart@arkalon.com.au              ║');
-  console.log('║  Password: Arkalon2024!                    ║');
-  console.log('╠════════════════════════════════════════════╣');
-  console.log('║  AI Ingest: POST /api/ai/ingest            ║');
-  console.log('║  API Key: arkalon-ai-key-2024              ║');
-  console.log('║  Header: X-API-Key: arkalon-ai-key-2024   ║');
-  console.log('╠════════════════════════════════════════════╣');
-  console.log('║  Ready for Session 2                       ║');
-  console.log('╚════════════════════════════════════════════╝');
-  console.log('');
+start().catch((err) => {
+  console.error('[FATAL] Server failed to start:', err);
+  process.exit(1);
 });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const router = express.Router();
 
 const VALID_UNIT_TYPES = ['per month', 'per seat/month', 'per day', 'per item', 'per project', 'flat fee'];
@@ -17,7 +17,7 @@ function normaliseCommissionPct(value) {
 }
 
 // GET /api/products
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { business_unit, is_active, category } = req.query;
     const whereClauses = [];
@@ -37,12 +37,12 @@ router.get('/', (req, res) => {
     }
 
     const where = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const products = db.prepare(`
+    const { rows: products } = await pool.query(P(`
       SELECT ${PRODUCT_COLUMNS}
       FROM products
       ${where}
       ORDER BY name ASC
-    `).all(...params);
+    `), params);
 
     res.json({ success: true, data: products });
   } catch (err) {
@@ -51,11 +51,11 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/products/categories — MUST be before /:id
-router.get('/categories', (req, res) => {
+router.get('/categories', async (req, res) => {
   try {
-    const rows = db.prepare(
+    const { rows } = await pool.query(
       "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category"
-    ).all();
+    );
     res.json({ success: true, data: rows.map(row => row.category) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -63,7 +63,7 @@ router.get('/categories', (req, res) => {
 });
 
 // GET /api/products/check-sku?sku=ABC&exclude_id=123 — MUST be before /:id
-router.get('/check-sku', (req, res) => {
+router.get('/check-sku', async (req, res) => {
   try {
     const { sku, exclude_id } = req.query;
     if (!sku?.trim()) return res.json({ success: true, available: false });
@@ -74,21 +74,27 @@ router.get('/check-sku', (req, res) => {
       sql += ' AND id != ?';
       params.push(Number(exclude_id));
     }
-    const existing = db.prepare(sql).get(...params);
-    res.json({ success: true, available: !existing });
+    const { rows } = await pool.query(P(sql), params);
+    res.json({ success: true, available: rows.length === 0 });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // PATCH /api/products/:id/toggle-active
-router.patch('/:id/toggle-active', (req, res) => {
+router.patch('/:id/toggle-active', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id, is_active FROM products WHERE id = ?').get(req.params.id);
+    const existingResult = await pool.query(
+      P('SELECT id, is_active FROM products WHERE id = ?'),
+      [req.params.id]
+    );
+    const existing = existingResult.rows[0];
     if (!existing) return res.status(404).json({ success: false, error: 'Product not found' });
 
-    db.prepare('UPDATE products SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(existing.is_active ? 0 : 1, req.params.id);
+    await pool.query(
+      P('UPDATE products SET is_active = ?, updated_at = NOW() WHERE id = ?'),
+      [existing.is_active ? 0 : 1, req.params.id]
+    );
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -96,9 +102,10 @@ router.patch('/:id/toggle-active', (req, res) => {
 });
 
 // POST /api/products/:id/duplicate — safe looping SKU generation
-router.post('/:id/duplicate', (req, res) => {
+router.post('/:id/duplicate', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    const existingResult = await pool.query(P('SELECT * FROM products WHERE id = ?'), [req.params.id]);
+    const existing = existingResult.rows[0];
     if (!existing) return res.status(404).json({ success: false, error: 'Product not found' });
 
     const baseSku = existing.sku
@@ -107,39 +114,43 @@ router.post('/:id/duplicate', (req, res) => {
 
     let newSku = baseSku;
     let attempt = 1;
-    while (db.prepare('SELECT id FROM products WHERE sku = ?').get(newSku)) {
+    while ((await pool.query(P('SELECT id FROM products WHERE sku = ?'), [newSku])).rows.length > 0) {
       attempt++;
       newSku = `${baseSku}-${attempt}`;
     }
 
-    const result = db.prepare(`
+    const result = await pool.query(P(`
       INSERT INTO products (name, sku, description, unit_price, unit_type, business_unit,
         default_commission_pct, is_recurring, is_active, category, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-    `).run(
+      RETURNING id
+    `), [
       `${existing.name} (Copy)`, newSku, existing.description,
       existing.unit_price, existing.unit_type, existing.business_unit,
       existing.default_commission_pct, existing.is_recurring,
       existing.category || null, existing.notes || null
-    );
-    res.status(201).json({ success: true, data: { id: result.lastInsertRowid } });
+    ]);
+    res.status(201).json({ success: true, data: { id: result.rows[0].id } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // GET /api/products/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const product = db.prepare(`
+    const productResult = await pool.query(P(`
       SELECT ${PRODUCT_COLUMNS}
       FROM products WHERE id = ?
-    `).get(req.params.id);
+    `), [req.params.id]);
+    const product = productResult.rows[0];
     if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
 
-    const { deal_count } = db.prepare(
-      'SELECT COUNT(DISTINCT deal_id) AS deal_count FROM deal_line_items WHERE product_id = ?'
-    ).get(req.params.id);
+    const countResult = await pool.query(
+      P('SELECT COUNT(DISTINCT deal_id) AS deal_count FROM deal_line_items WHERE product_id = ?'),
+      [req.params.id]
+    );
+    const { deal_count } = countResult.rows[0];
 
     res.json({ success: true, data: { ...product, deal_count } });
   } catch (err) {
@@ -148,7 +159,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/products
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, sku, description, unit_price, unit_type, business_unit,
             default_commission_pct, is_recurring, is_active } = req.body;
@@ -165,25 +176,29 @@ router.post('/', (req, res) => {
     const commission = normaliseCommissionPct(default_commission_pct);
     if (commission.error) return res.status(400).json({ success: false, error: commission.error });
 
-    const skuConflict = db.prepare('SELECT id FROM products WHERE sku = ?').get(sku.trim());
-    if (skuConflict) {
+    const skuConflict = await pool.query(P('SELECT id FROM products WHERE sku = ?'), [sku.trim()]);
+    if (skuConflict.rows.length > 0) {
       return res.status(400).json({ success: false, error: `SKU "${sku.trim()}" is already in use` });
     }
 
-    const result = db.prepare(`
+    const result = await pool.query(P(`
       INSERT INTO products (name, sku, description, unit_price, unit_type, business_unit,
         default_commission_pct, is_recurring, is_active, category, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      RETURNING id
+    `), [
       name.trim(), sku.trim(), description?.trim() || null, round2(unit_price || 0), unit_type || null,
       business_unit, commission.pct, is_recurring ? 1 : 0, is_active !== false ? 1 : 0,
       req.body.category?.trim() || null, req.body.notes?.trim() || null
-    );
+    ]);
 
-    const product = db.prepare(`SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`).get(result.lastInsertRowid);
-    res.status(201).json({ success: true, data: product });
+    const { rows } = await pool.query(
+      P(`SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`),
+      [result.rows[0].id]
+    );
+    res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) {
+    if (err.code === '23505') {
       return res.status(400).json({ success: false, error: 'A product with that SKU already exists' });
     }
     res.status(500).json({ success: false, error: err.message });
@@ -191,10 +206,10 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/products/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Product not found' });
+    const existing = await pool.query(P('SELECT id FROM products WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Product not found' });
 
     const { name, sku, description, unit_price, unit_type, business_unit,
             default_commission_pct, is_recurring, is_active } = req.body;
@@ -211,29 +226,34 @@ router.put('/:id', (req, res) => {
     const commission = normaliseCommissionPct(default_commission_pct);
     if (commission.error) return res.status(400).json({ success: false, error: commission.error });
 
-    const skuConflict = db.prepare('SELECT id FROM products WHERE sku = ? AND id != ?')
-      .get(sku.trim(), req.params.id);
-    if (skuConflict) {
+    const skuConflict = await pool.query(
+      P('SELECT id FROM products WHERE sku = ? AND id != ?'),
+      [sku.trim(), req.params.id]
+    );
+    if (skuConflict.rows.length > 0) {
       return res.status(400).json({ success: false, error: `SKU "${sku.trim()}" is already in use` });
     }
 
-    db.prepare(`
+    await pool.query(P(`
       UPDATE products SET
         name = ?, sku = ?, description = ?, unit_price = ?, unit_type = ?,
         business_unit = ?, default_commission_pct = ?, is_recurring = ?, is_active = ?,
-        category = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+        category = ?, notes = ?, updated_at = NOW()
       WHERE id = ?
-    `).run(
+    `), [
       name.trim(), sku.trim(), description?.trim() || null, round2(unit_price || 0), unit_type || null,
       business_unit, commission.pct, is_recurring ? 1 : 0, is_active !== false ? 1 : 0,
       req.body.category?.trim() || null, req.body.notes?.trim() || null,
       req.params.id
-    );
+    ]);
 
-    const product = db.prepare(`SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`).get(req.params.id);
-    res.json({ success: true, data: product });
+    const { rows } = await pool.query(
+      P(`SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`),
+      [req.params.id]
+    );
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) {
+    if (err.code === '23505') {
       return res.status(400).json({ success: false, error: 'A product with that SKU already exists' });
     }
     res.status(500).json({ success: false, error: err.message });
@@ -241,17 +261,20 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/products/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Product not found' });
+    const existing = await pool.query(P('SELECT id FROM products WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Product not found' });
 
-    const inUse = db.prepare('SELECT id FROM deal_line_items WHERE product_id = ? LIMIT 1').get(req.params.id);
-    if (inUse) {
+    const inUse = await pool.query(
+      P('SELECT id FROM deal_line_items WHERE product_id = ? LIMIT 1'),
+      [req.params.id]
+    );
+    if (inUse.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Cannot delete — product is used in one or more deals' });
     }
 
-    db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+    await pool.query(P('DELETE FROM products WHERE id = ?'), [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

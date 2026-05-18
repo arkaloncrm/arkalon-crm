@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const { getSydneyTodayUtcBounds } = require('../utils/dateUtils');
 const router = express.Router();
 
@@ -51,7 +51,7 @@ function validateBusinessUnitCompatibility(business_unit, { lead, contact, accou
 }
 
 // GET /api/tasks
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { business_unit, status, priority, lead_id, contact_id, account_id, deal_id,
       overdue, due_today, sort_by, sort_dir, limit, offset } = req.query;
@@ -68,7 +68,7 @@ router.get('/', (req, res) => {
     if (deal_id) { conditions.push('tasks.deal_id = ?'); params.push(deal_id); }
 
     if (overdue === 'true') {
-      conditions.push(`tasks.due_datetime < CURRENT_TIMESTAMP AND tasks.status != 'Completed'`);
+      conditions.push(`tasks.due_datetime < NOW() AND tasks.status != 'Completed'`);
     } else if (due_today === 'true') {
       const { startUtc, endUtc } = getSydneyTodayUtcBounds();
       conditions.push(`tasks.due_datetime >= ? AND tasks.due_datetime < ? AND tasks.status != 'Completed'`);
@@ -88,7 +88,7 @@ router.get('/', (req, res) => {
       sql += ` LIMIT ${lim} OFFSET ${off}`;
     }
 
-    const tasks = db.prepare(sql).all(...params);
+    const { rows: tasks } = await pool.query(P(sql), params);
     res.json({ success: true, data: tasks });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -96,28 +96,29 @@ router.get('/', (req, res) => {
 });
 
 // PATCH /api/tasks/:id/complete — must be before /:id to avoid conflict
-router.patch('/:id/complete', (req, res) => {
+router.patch('/:id/complete', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM tasks WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Task not found' });
+    const existing = await pool.query(P('SELECT id FROM tasks WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Task not found' });
 
-    db.prepare(`
+    await pool.query(P(`
       UPDATE tasks
-      SET status = 'Completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      SET status = 'Completed', completed_at = NOW(), updated_at = NOW()
       WHERE id = ?
-    `).run(req.params.id);
+    `), [req.params.id]);
 
-    const task = db.prepare(`${BASE_SELECT} WHERE tasks.id = ?`).get(req.params.id);
-    res.json({ success: true, data: task });
+    const { rows } = await pool.query(P(`${BASE_SELECT} WHERE tasks.id = ?`), [req.params.id]);
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // GET /api/tasks/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const task = db.prepare(`${BASE_SELECT} WHERE tasks.id = ?`).get(req.params.id);
+    const { rows } = await pool.query(P(`${BASE_SELECT} WHERE tasks.id = ?`), [req.params.id]);
+    const task = rows[0];
     if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
     res.json({ success: true, data: task });
   } catch (err) {
@@ -126,7 +127,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/tasks
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { activity_owner_id, task_owner_id, created_by_id, ...safeBody } = req.body;
     const {
@@ -145,7 +146,8 @@ router.post('/', (req, res) => {
     let deal = null;
 
     if (contact_id) {
-      contact = db.prepare('SELECT id, account_id, business_unit FROM contacts WHERE id = ?').get(contact_id);
+      const r = await pool.query(P('SELECT id, account_id, business_unit FROM contacts WHERE id = ?'), [contact_id]);
+      contact = r.rows[0];
       if (!contact) return res.status(400).json({ success: false, error: 'Selected contact does not exist' });
       if (account_id && contact.account_id !== Number(account_id)) {
         return res.status(400).json({ success: false, error: 'Contact does not belong to the selected account' });
@@ -153,7 +155,8 @@ router.post('/', (req, res) => {
     }
 
     if (deal_id) {
-      deal = db.prepare('SELECT id, account_id, business_unit FROM deals WHERE id = ?').get(deal_id);
+      const r = await pool.query(P('SELECT id, account_id, business_unit FROM deals WHERE id = ?'), [deal_id]);
+      deal = r.rows[0];
       if (!deal) return res.status(400).json({ success: false, error: 'Selected deal does not exist' });
       if (account_id && deal.account_id !== Number(account_id)) {
         return res.status(400).json({ success: false, error: 'Deal does not belong to the selected account' });
@@ -161,42 +164,45 @@ router.post('/', (req, res) => {
     }
 
     if (lead_id) {
-      lead = db.prepare('SELECT id, business_unit FROM leads WHERE id = ?').get(lead_id);
+      const r = await pool.query(P('SELECT id, business_unit FROM leads WHERE id = ?'), [lead_id]);
+      lead = r.rows[0];
       if (!lead) return res.status(400).json({ success: false, error: 'Selected lead does not exist' });
     }
 
     if (account_id) {
-      account = db.prepare('SELECT id, business_unit FROM accounts WHERE id = ?').get(account_id);
+      const r = await pool.query(P('SELECT id, business_unit FROM accounts WHERE id = ?'), [account_id]);
+      account = r.rows[0];
       if (!account) return res.status(400).json({ success: false, error: 'Selected account does not exist' });
     }
 
     const buError = validateBusinessUnitCompatibility(business_unit, { lead, contact, account, deal });
     if (buError) return res.status(400).json({ success: false, error: buError });
 
-    const result = db.prepare(`
+    const insert = await pool.query(P(`
       INSERT INTO tasks (subject, status, priority, due_datetime, is_all_day, reminder_datetime,
         description, lead_id, contact_id, account_id, deal_id, business_unit, task_owner_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      RETURNING id
+    `), [
       subject, status || 'Not Started', priority || 'Normal',
       due_datetime || null, is_all_day !== false ? 1 : 0,
       reminder_datetime || null, description || null,
       lead_id || null, contact_id || null, account_id || null, deal_id || null,
       business_unit, req.user.id,
-    );
+    ]);
 
-    const task = db.prepare(`${BASE_SELECT} WHERE tasks.id = ?`).get(result.lastInsertRowid);
-    res.status(201).json({ success: true, data: task });
+    const { rows } = await pool.query(P(`${BASE_SELECT} WHERE tasks.id = ?`), [insert.rows[0].id]);
+    res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // PUT /api/tasks/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM tasks WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Task not found' });
+    const existing = await pool.query(P('SELECT id FROM tasks WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Task not found' });
 
     const { activity_owner_id, task_owner_id, created_by_id, ...safeBody } = req.body;
 
@@ -212,22 +218,30 @@ router.put('/:id', (req, res) => {
       safeBody.completed_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
     }
 
+    // PostgreSQL rejects '' for non-text columns (SQLite tolerated it) — coerce
+    // empty strings to NULL for date / numeric / foreign-key fields.
+    const NON_TEXT = new Set(['due_datetime', 'is_all_day', 'reminder_datetime', 'completed_at', 'lead_id', 'contact_id', 'account_id', 'deal_id']);
     const setClause = updates.map(f => `${f} = ?`).join(', ');
-    db.prepare(`UPDATE tasks SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .run(...updates.map(f => safeBody[f]), req.params.id);
+    await pool.query(
+      P(`UPDATE tasks SET ${setClause}, updated_at = NOW() WHERE id = ?`),
+      [...updates.map(f => {
+        const v = safeBody[f];
+        return NON_TEXT.has(f) && v === '' ? null : v;
+      }), req.params.id]
+    );
 
-    const task = db.prepare(`${BASE_SELECT} WHERE tasks.id = ?`).get(req.params.id);
-    res.json({ success: true, data: task });
+    const { rows } = await pool.query(P(`${BASE_SELECT} WHERE tasks.id = ?`), [req.params.id]);
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // DELETE /api/tasks/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
-    if (result.changes === 0) return res.status(404).json({ success: false, error: 'Task not found' });
+    const result = await pool.query(P('DELETE FROM tasks WHERE id = ?'), [req.params.id]);
+    if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'Task not found' });
     res.json({ success: true, message: 'Task deleted' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

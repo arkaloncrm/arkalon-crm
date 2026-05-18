@@ -1,18 +1,10 @@
-const database = require('../../database.js');
-const db = database.db || database;
+const { pool } = require('../../database');
 
-function runMigration() {
-  const columns = db.pragma('table_info(products)').map(col => col.name);
-
-  if (!columns.includes('category')) {
-    db.prepare('ALTER TABLE products ADD COLUMN category TEXT').run();
-    console.log('[Migration 006] Added products.category');
-  }
-
-  if (!columns.includes('notes')) {
-    db.prepare('ALTER TABLE products ADD COLUMN notes TEXT').run();
-    console.log('[Migration 006] Added products.notes');
-  }
+async function runMigration() {
+  // These columns now ship in the base schema; ADD COLUMN IF NOT EXISTS keeps
+  // this a safe no-op on fresh databases and a real migration on older ones.
+  await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS category TEXT');
+  await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS notes TEXT');
 }
 
 module.exports = { runMigration };

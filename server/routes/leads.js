@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../database');
+const { pool, P } = require('../database');
 const router = express.Router();
 
 const STAGE_PROBABILITY = {
@@ -8,7 +8,7 @@ const STAGE_PROBABILITY = {
 };
 
 // GET /api/leads
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { business_unit, status, priority, search, converted, sort_by, sort_dir } = req.query;
 
@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
     if (status) { conditions.push('l.lead_status = ?'); params.push(status); }
     if (priority) { conditions.push('l.priority = ?'); params.push(priority); }
     if (search) {
-      conditions.push('(l.company LIKE ? OR l.first_name LIKE ? OR l.last_name LIKE ? OR l.email LIKE ?)');
+      conditions.push('(l.company ILIKE ? OR l.first_name ILIKE ? OR l.last_name ILIKE ? OR l.email ILIKE ?)');
       const s = `%${search}%`;
       params.push(s, s, s, s);
     }
@@ -34,13 +34,13 @@ router.get('/', (req, res) => {
     const col = allowedSorts.includes(sort_by) ? sort_by : 'created_at';
     const dir = sort_dir === 'asc' ? 'ASC' : 'DESC';
 
-    const leads = db.prepare(`
+    const { rows: leads } = await pool.query(P(`
       SELECT l.*, u.name as lead_owner_name
       FROM leads l
       LEFT JOIN users u ON l.lead_owner_id = u.id
       ${where}
       ORDER BY l.${col} ${dir}
-    `).all(...params);
+    `), params);
 
     res.json({ success: true, data: leads, total: leads.length });
   } catch (err) {
@@ -49,14 +49,15 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/leads/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const lead = db.prepare(`
+    const { rows } = await pool.query(P(`
       SELECT l.*, u.name as lead_owner_name
       FROM leads l
       LEFT JOIN users u ON l.lead_owner_id = u.id
       WHERE l.id = ?
-    `).get(req.params.id);
+    `), [req.params.id]);
+    const lead = rows[0];
     if (!lead) return res.status(404).json({ success: false, error: 'Lead not found' });
     res.json({ success: true, data: lead });
   } catch (err) {
@@ -65,7 +66,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/leads
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       salutation, first_name, last_name, title, company, email, phone, mobile,
@@ -79,7 +80,7 @@ router.post('/', (req, res) => {
       return res.status(400).json({ success: false, error: 'Last name and company are required' });
     }
 
-    const result = db.prepare(`
+    const insert = await pool.query(P(`
       INSERT INTO leads (
         salutation, first_name, last_name, title, company, email, phone, mobile,
         website, industry, employee_count, annual_revenue, lead_source, lead_status,
@@ -87,30 +88,31 @@ router.post('/', (req, res) => {
         next_action_date, last_contacted, priority, lead_owner_id,
         street, city, state, postcode, country
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      RETURNING id
+    `), [
       salutation, first_name, last_name, title, company, email, phone, mobile,
       website, industry, employee_count, annual_revenue, lead_source, lead_status || 'New',
       business_unit, target_type, description, warm_path, next_action,
-      next_action_date, last_contacted, priority, lead_owner_id || req.user.id,
+      next_action_date || null, last_contacted || null, priority, lead_owner_id || req.user.id,
       street, city, state, postcode, country || 'Australia',
-    );
+    ]);
 
-    const lead = db.prepare(`
+    const { rows } = await pool.query(P(`
       SELECT l.*, u.name as lead_owner_name
       FROM leads l LEFT JOIN users u ON l.lead_owner_id = u.id
       WHERE l.id = ?
-    `).get(result.lastInsertRowid);
-    res.status(201).json({ success: true, data: lead });
+    `), [insert.rows[0].id]);
+    res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // PUT /api/leads/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM leads WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Lead not found' });
+    const existing = await pool.query(P('SELECT id FROM leads WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Lead not found' });
 
     const fields = [
       'salutation', 'first_name', 'last_name', 'title', 'company', 'email', 'phone', 'mobile',
@@ -122,37 +124,53 @@ router.put('/:id', (req, res) => {
     const updates = fields.filter(f => req.body[f] !== undefined);
     if (updates.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });
 
+    // PostgreSQL rejects '' for non-text columns (SQLite tolerated it) — coerce
+    // empty strings to NULL for date / numeric fields.
+    const NON_TEXT = new Set(['employee_count', 'annual_revenue', 'next_action_date', 'last_contacted', 'lead_owner_id']);
     const setClause = updates.map(f => `${f} = ?`).join(', ');
-    db.prepare(`UPDATE leads SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .run(...updates.map(f => req.body[f]), req.params.id);
+    await pool.query(
+      P(`UPDATE leads SET ${setClause}, updated_at = NOW() WHERE id = ?`),
+      [...updates.map(f => {
+        const v = req.body[f];
+        return NON_TEXT.has(f) && v === '' ? null : v;
+      }), req.params.id]
+    );
 
-    const lead = db.prepare(`
+    const { rows } = await pool.query(P(`
       SELECT l.*, u.name as lead_owner_name
       FROM leads l LEFT JOIN users u ON l.lead_owner_id = u.id
       WHERE l.id = ?
-    `).get(req.params.id);
-    res.json({ success: true, data: lead });
+    `), [req.params.id]);
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // DELETE /api/leads/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM leads WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Lead not found' });
+    const existing = await pool.query(P('SELECT id FROM leads WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Lead not found' });
 
-    const deleteLeadTx = db.transaction((id) => {
-      db.prepare('DELETE FROM notes WHERE lead_id = ?').run(id);
-      db.prepare('DELETE FROM activities WHERE lead_id = ?').run(id);
-      db.prepare('DELETE FROM tasks WHERE lead_id = ?').run(id);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const id = req.params.id;
+      await client.query('DELETE FROM notes WHERE lead_id = $1', [id]);
+      await client.query('DELETE FROM activities WHERE lead_id = $1', [id]);
+      await client.query('DELETE FROM tasks WHERE lead_id = $1', [id]);
       // deals.converted_from_lead_id references leads(id) with no ON DELETE rule —
       // clear it first so a lead with a converted deal can be deleted.
-      db.prepare('UPDATE deals SET converted_from_lead_id = NULL WHERE converted_from_lead_id = ?').run(id);
-      db.prepare('DELETE FROM leads WHERE id = ?').run(id);
-    });
-    deleteLeadTx(req.params.id);
+      await client.query('UPDATE deals SET converted_from_lead_id = NULL WHERE converted_from_lead_id = $1', [id]);
+      await client.query('DELETE FROM leads WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, message: 'Lead deleted' });
   } catch (err) {
@@ -161,9 +179,10 @@ router.delete('/:id', (req, res) => {
 });
 
 // POST /api/leads/:id/convert
-router.post('/:id/convert', (req, res) => {
+router.post('/:id/convert', async (req, res) => {
   try {
-    const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(req.params.id);
+    const leadResult = await pool.query(P('SELECT * FROM leads WHERE id = ?'), [req.params.id]);
+    const lead = leadResult.rows[0];
     if (!lead) return res.status(404).json({ success: false, error: 'Lead not found' });
     if (lead.converted) return res.status(400).json({ success: false, error: 'Lead is already converted' });
 
@@ -175,14 +194,19 @@ router.post('/:id/convert', (req, res) => {
     const stage = deal_stage || 'New';
     const probability = STAGE_PROBABILITY[stage] ?? 10;
 
-    const convert = db.transaction(() => {
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+
       // 1. Create Account
-      const accountResult = db.prepare(`
+      const accountResult = await client.query(P(`
         INSERT INTO accounts (name, website, industry, employee_count, annual_revenue, phone,
           billing_street, billing_city, billing_state, billing_postcode, billing_country,
           business_unit, account_owner_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+        RETURNING id
+      `), [
         account_name,
         lead.website,
         lead.industry,
@@ -196,15 +220,16 @@ router.post('/:id/convert', (req, res) => {
         lead.country || 'Australia',
         business_unit,
         lead.lead_owner_id,
-      );
-      const accountId = accountResult.lastInsertRowid;
+      ]);
+      const accountId = accountResult.rows[0].id;
 
       // 2. Create Contact
-      const contactResult = db.prepare(`
+      const contactResult = await client.query(P(`
         INSERT INTO contacts (account_id, salutation, first_name, last_name, title,
           email, phone, mobile, business_unit, contact_owner_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+        RETURNING id
+      `), [
         accountId,
         lead.salutation,
         lead.first_name,
@@ -215,19 +240,20 @@ router.post('/:id/convert', (req, res) => {
         lead.mobile,
         business_unit,
         lead.lead_owner_id,
-      );
-      const contactId = contactResult.lastInsertRowid;
+      ]);
+      const contactId = contactResult.rows[0].id;
 
       // 3. Optionally create Deal
       let dealId = null;
       if (create_deal && deal_name) {
         const grossTotal = Math.round(0 * 100) / 100;
-        const dealResult = db.prepare(`
+        const dealResult = await client.query(P(`
           INSERT INTO deals (deal_name, account_id, stage, probability, close_date,
             business_unit, gross_total_value, commission_amount, total_contract_earnings,
             weighted_value, forecast_category, converted_from_lead_id, deal_owner_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
+          RETURNING id
+        `), [
           deal_name,
           accountId,
           stage,
@@ -241,31 +267,37 @@ router.post('/:id/convert', (req, res) => {
           'Pipeline',
           lead.id,
           lead.lead_owner_id,
-        );
-        dealId = dealResult.lastInsertRowid;
+        ]);
+        dealId = dealResult.rows[0].id;
 
         // Link contact to deal via junction table
-        db.prepare(`
-          INSERT INTO deal_contacts (deal_id, contact_id, role) VALUES (?, ?, ?)
-        `).run(dealId, contactId, 'Primary');
+        await client.query(
+          P('INSERT INTO deal_contacts (deal_id, contact_id, role) VALUES (?, ?, ?)'),
+          [dealId, contactId, 'Primary']
+        );
       }
 
       // 4. Mark lead as converted
-      db.prepare(`
+      await client.query(P(`
         UPDATE leads SET
           converted = 1,
-          converted_at = CURRENT_TIMESTAMP,
+          converted_at = NOW(),
           converted_account_id = ?,
           converted_contact_id = ?,
           converted_deal_id = ?,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = NOW()
         WHERE id = ?
-      `).run(accountId, contactId, dealId, lead.id);
+      `), [accountId, contactId, dealId, lead.id]);
 
-      return { account_id: accountId, contact_id: contactId, deal_id: dealId, lead_id: lead.id };
-    });
+      await client.query('COMMIT');
+      result = { account_id: accountId, contact_id: contactId, deal_id: dealId, lead_id: lead.id };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
-    const result = convert();
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
