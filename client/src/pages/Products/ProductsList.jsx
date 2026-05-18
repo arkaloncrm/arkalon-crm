@@ -6,6 +6,7 @@ import SearchBar from '../../components/UI/SearchBar.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import { BUSINESS_UNITS } from '../../utils/constants.js';
 import { formatCurrency, formatPercentage } from '../../utils/formatCurrency.js';
@@ -137,17 +138,56 @@ export default function ProductsList() {
         </select>
       </div>
 
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="py-12 text-center text-slate-400 font-opensans text-sm">Loading…</div>
-        ) : records.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg py-12 text-center text-slate-400 font-opensans text-sm">Loading…</div>
+      ) : records.length === 0 ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <EmptyState
             title={emptyTitle}
             description={emptyDescription}
             action={() => navigate('/products/new')}
             actionLabel="+ New Product"
           />
-        ) : (
+        </div>
+      ) : (
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="sm:hidden space-y-3">
+            {records.map(r => (
+              <MobileCard key={r.id} onClick={() => navigate(`/products/${r.id}`)}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">{r.name}</span>
+                  <Badge className={`${BU_COLOURS[r.business_unit] || 'bg-gray-100 text-gray-600'} flex-shrink-0`}>{r.business_unit}</Badge>
+                </div>
+                {r.sku && <div className="text-xs font-mono text-slate-400 mt-0.5 truncate">{r.sku}</div>}
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <span className="text-sm font-opensans font-semibold text-slate-700">{formatCurrency(r.unit_price)}</span>
+                  <span className="text-xs text-slate-500 font-opensans">{r.unit_type || '—'}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <Badge className={r.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}>
+                    {r.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                  <Badge className={r.is_recurring ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                    {r.is_recurring ? 'Recurring' : 'One-off'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
+                  <CardAction label="Edit" onClick={() => navigate(`/products/${r.id}/edit`)}>
+                    <Pencil className="w-4 h-4" />
+                  </CardAction>
+                  <CardAction label="Duplicate" onClick={() => handleDuplicate(r)}>
+                    <Copy className="w-4 h-4" />
+                  </CardAction>
+                  <CardAction label="Delete" danger onClick={() => setDeleteTarget(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </CardAction>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <Table>
             <Thead>
               <tr>
@@ -218,8 +258,9 @@ export default function ProductsList() {
               ))}
             </Tbody>
           </Table>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       <ConfirmDialog
         isOpen={!!deleteTarget}

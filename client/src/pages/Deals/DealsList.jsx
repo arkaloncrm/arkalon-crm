@@ -6,6 +6,7 @@ import SearchBar from '../../components/UI/SearchBar.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import { BUSINESS_UNITS, DEAL_STAGES, STAGE_COLOURS, FORECAST_CATEGORIES } from '../../utils/constants.js';
 import { formatCurrency, formatMrr } from '../../utils/formatCurrency.js';
@@ -225,18 +226,57 @@ export default function DealsList() {
 
       {viewMode === 'kanban' ? (
         <DealKanban deals={records} onStageChange={loadDeals} onDealClick={id => navigate(`/deals/${id}`)} />
-      ) : (
+      ) : loading ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg py-12 text-center text-slate-400 font-opensans text-sm">Loading…</div>
+      ) : records.length === 0 ? (
         <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-          {loading ? (
-            <div className="py-12 text-center text-slate-400 font-opensans text-sm">Loading…</div>
-          ) : records.length === 0 ? (
-            <EmptyState
-              title="No deals yet"
-              description="Track your opportunities from prospect to close."
-              action={() => navigate('/deals/new')}
-              actionLabel="Create your first deal"
-            />
-          ) : (
+          <EmptyState
+            title="No deals yet"
+            description="Track your opportunities from prospect to close."
+            action={() => navigate('/deals/new')}
+            actionLabel="Create your first deal"
+          />
+        </div>
+      ) : (
+        <>
+          {/* Mobile: stacked cards (no inline editing — tap opens the deal) */}
+          <div className="sm:hidden space-y-3">
+            {records.map(r => (
+              <MobileCard key={r.id} onClick={() => navigate(`/deals/${r.id}`)}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">{r.deal_name}</span>
+                  <Badge className={`${STAGE_COLOURS[r.stage] || 'bg-gray-100 text-gray-700'} flex-shrink-0`}>{r.stage}</Badge>
+                </div>
+                {r.account_name && (
+                  <div className="text-xs text-slate-500 font-opensans mt-0.5 truncate">{r.account_name}</div>
+                )}
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <span className="text-sm font-opensans text-slate-700">{formatCurrency(r.gross_total_value)}</span>
+                  <span className="font-bold font-opensans text-sm" style={{ color: '#0073C6' }}>
+                    {formatCurrency(r.total_contract_earnings)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {r.business_unit && (
+                    <Badge className={BU_COLOURS[r.business_unit] || 'bg-gray-100 text-gray-600'}>{r.business_unit}</Badge>
+                  )}
+                  <span className="text-xs text-slate-400 font-opensans">
+                    {r.close_date ? formatDate(r.close_date) : 'No close date'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
+                  <CardAction label="Edit" onClick={() => navigate(`/deals/${r.id}/edit`)}>
+                    <Pencil className="w-4 h-4" />
+                  </CardAction>
+                  <CardAction label="Delete" danger onClick={() => setDeleteTarget(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </CardAction>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
             <Table>
               <Thead>
                 <tr>
@@ -322,8 +362,8 @@ export default function DealsList() {
                 ))}
               </Tbody>
             </Table>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
       <ConfirmDialog

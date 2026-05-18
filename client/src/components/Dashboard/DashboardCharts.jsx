@@ -175,7 +175,7 @@ export default function DashboardCharts() {
         )}
       </ChartCard>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Chart 2 — Commission by Business Unit */}
         <ChartCard title="Commission by Business Unit">
           {buSummary === null ? (

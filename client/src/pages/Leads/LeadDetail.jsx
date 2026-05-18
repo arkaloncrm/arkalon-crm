@@ -332,7 +332,7 @@ export default function LeadDetail() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
           <button onClick={() => navigate('/leads')} className="flex items-center gap-1 text-arkalon-blue text-sm hover:underline font-opensans mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Leads
@@ -401,7 +401,7 @@ export default function LeadDetail() {
       />
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <SectionCard title="Lead Information">
           <FieldRow label="Salutation" value={lead.salutation} />
           <FieldRow label="First Name" value={lead.first_name} />

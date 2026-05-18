@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { accountsApi } from '../../api/accounts.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { BUSINESS_UNITS, INDUSTRIES } from '../../utils/constants.js';
@@ -136,13 +137,52 @@ export default function AccountsList() {
         )}
       </div>
 
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="p-8 space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
-        ) : accounts.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
+      ) : accounts.length === 0 ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <EmptyState title="No accounts yet" description="Create accounts to group your contacts and deals." action={() => navigate('/accounts/new')} actionLabel="Create your first account" />
-        ) : (
-          <table className="w-full text-sm">
+        </div>
+      ) : (
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="sm:hidden space-y-3">
+            {paginated.map(account => (
+              <MobileCard key={account.id} onClick={() => navigate(`/accounts/${account.id}`)}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">{account.name}</span>
+                  {account.business_unit && (
+                    <Badge className={`${BU_COLOURS[account.business_unit] || 'bg-gray-100 text-gray-600'} flex-shrink-0`}>
+                      {account.business_unit}
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-2 space-y-0.5">
+                  <div className="text-xs text-slate-500 font-opensans truncate">{account.industry || 'No industry'}</div>
+                  <div className="text-xs text-slate-500 font-opensans truncate">{account.phone || 'No phone'}</div>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+                  <span className="text-xs text-slate-400 font-opensans">
+                    {account.open_deals_count > 0
+                      ? `${account.open_deals_count} open deal${account.open_deals_count === 1 ? '' : 's'}`
+                      : 'No open deals'}
+                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <CardAction label="Edit" onClick={() => navigate(`/accounts/${account.id}/edit`)}>
+                      <Pencil className="w-4 h-4" />
+                    </CardAction>
+                    <CardAction label="Delete" danger onClick={() => setDeleteTarget(account)}>
+                      <Trash2 className="w-4 h-4" />
+                    </CardAction>
+                  </div>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-arkalon-lightgrey">
               <tr>
                 <th className="px-3 py-2.5 w-8">
@@ -210,9 +250,11 @@ export default function AccountsList() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
-      </div>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {accounts.length > PAGE_SIZE && (
         <div className="flex items-center justify-between mt-3 px-1">

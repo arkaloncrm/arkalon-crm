@@ -127,7 +127,7 @@ export default function AccountForm() {
           <div className="px-5 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
             <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Account Information</h3>
           </div>
-          <div className="p-5 grid grid-cols-2 gap-4">
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Account Name" required error={errors.name}>
               <input type="text" className={inputCls(errors.name)} value={form.name} onChange={set('name')} onBlur={checkDuplicates} />
             </Field>
@@ -162,7 +162,7 @@ export default function AccountForm() {
           <div className="px-5 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
             <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Billing Address</h3>
           </div>
-          <div className="p-5 grid grid-cols-2 gap-4">
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
               <Field label="Street">
                 <input type="text" className={inputCls()} value={form.billing_street} onChange={set('billing_street')} />
@@ -193,9 +193,9 @@ export default function AccountForm() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 -mx-6 -mb-6 bg-white border-t border-arkalon-lightgrey px-6 py-3 flex justify-end gap-2 z-30">
-        <Button type="button" variant="secondary" onClick={() => navigate('/accounts')}>Cancel</Button>
-        <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Account'}</Button>
+      <div className="sticky bottom-0 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 bg-white border-t border-arkalon-lightgrey px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:justify-end gap-2 z-30">
+        <Button type="button" variant="secondary" onClick={() => navigate('/accounts')} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">Cancel</Button>
+        <Button type="submit" disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">{saving ? 'Saving…' : 'Save Account'}</Button>
       </div>
     </form>
   );

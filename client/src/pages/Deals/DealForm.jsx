@@ -304,7 +304,7 @@ export default function DealForm() {
         </h2>
       </div>
 
-      <div className="flex gap-5 items-start">
+      <div className="flex flex-col lg:flex-row gap-5 lg:items-start">
         <div className="flex-1 min-w-0 space-y-4">
 
           {/* Section 1 — Deal Details */}
@@ -312,7 +312,7 @@ export default function DealForm() {
             <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
               <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Deal Details</h3>
             </div>
-            <div className="p-4 grid grid-cols-2 gap-4">
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               <div className="col-span-2">
                 <label className={labelCls}>Deal Name *</label>
@@ -485,8 +485,8 @@ export default function DealForm() {
                       !contactRoles.some((r2, j) => j !== idx && String(r2.contact_id) === String(c.id))
                     );
                     return (
-                      <div key={idx} className="flex items-center gap-3">
-                        <select className={`${inputCls} flex-1`} value={cr.contact_id}
+                      <div key={idx} className="flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <select className={`${inputCls} sm:flex-1`} value={cr.contact_id}
                           onChange={e => updateContactRole(idx, 'contact_id', e.target.value)}>
                           {availableContacts.map(c => (
                             <option key={c.id} value={c.id}>
@@ -494,7 +494,7 @@ export default function DealForm() {
                             </option>
                           ))}
                         </select>
-                        <select className={`${inputCls} w-44`} value={cr.role}
+                        <select className={`${inputCls} w-full sm:w-44`} value={cr.role}
                           onChange={e => updateContactRole(idx, 'role', e.target.value)}>
                           {CONTACT_ROLES.map(role => <option key={role}>{role}</option>)}
                         </select>
@@ -626,7 +626,7 @@ export default function DealForm() {
         </div>
 
         {/* Financial Summary Panel */}
-        <div className="w-72 flex-shrink-0 sticky top-4">
+        <div className="w-full lg:w-72 lg:flex-shrink-0 lg:sticky lg:top-4">
           <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
               <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Deal Financials</h3>
@@ -684,11 +684,11 @@ export default function DealForm() {
       </div>
 
       {/* Sticky footer */}
-      <div className="sticky bottom-0 bg-white border-t border-arkalon-lightgrey mt-6 -mx-6 px-6 py-4 flex items-center justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={() => navigate(isEdit ? `/deals/${id}` : '/deals')}>
+      <div className="sticky bottom-0 bg-white border-t border-arkalon-lightgrey mt-6 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
+        <Button type="button" variant="secondary" onClick={() => navigate(isEdit ? `/deals/${id}` : '/deals')} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">
           Cancel
         </Button>
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">
           {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Deal'}
         </Button>
       </div>

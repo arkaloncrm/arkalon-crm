@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { tasksApi } from '../../api/tasks.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { formatLocalDatetime, formatDate } from '../../utils/formatDate.js';
@@ -162,17 +163,65 @@ export default function TasksList() {
         ))}
       </div>
 
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-slate-400 font-opensans text-sm">Loading…</div>
-        ) : filtered.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 text-center text-slate-400 font-opensans text-sm">Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <EmptyState
             title="No tasks"
             description="Stay on top of follow-ups and to-dos."
             action={() => navigate('/tasks/new')}
             actionLabel="Create your first task"
           />
-        ) : (
+        </div>
+      ) : (
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="sm:hidden space-y-3">
+            {filtered.map(row => {
+              const done = row.status === 'Completed';
+              const overdue = isOverdue(row);
+              return (
+                <MobileCard key={row.id} onClick={() => navigate(`/tasks/${row.id}/edit`)}>
+                  <div className="flex items-start gap-2">
+                    <button
+                      onClick={e => handleComplete(row, e)}
+                      disabled={done || completing === row.id}
+                      className={`flex-shrink-0 p-0.5 ${done ? 'text-green-500' : 'text-slate-300 hover:text-arkalon-blue'}`}
+                      aria-label="Mark complete"
+                    >
+                      {done ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                    </button>
+                    <span className={`font-semibold font-opensans text-sm flex-1 min-w-0 ${done ? 'line-through text-slate-400' : 'text-arkalon-navy'}`}>
+                      {row.subject}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {row.priority && <Badge className={PRIORITY_COLOURS[row.priority] || 'bg-gray-100 text-gray-600'}>{row.priority}</Badge>}
+                    {row.status && <Badge className={STATUS_COLOURS[row.status] || 'bg-gray-100 text-gray-600'}>{row.status}</Badge>}
+                    {row.business_unit && <Badge className={BU_COLOURS[row.business_unit] || 'bg-gray-100 text-gray-600'}>{row.business_unit}</Badge>}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+                    <span className={`text-xs font-opensans truncate ${overdue ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+                      {row.due_datetime
+                        ? (row.is_all_day ? formatDate(row.due_datetime) : formatLocalDatetime(row.due_datetime))
+                        : 'No due date'}
+                    </span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <CardAction label="Edit" onClick={() => navigate(`/tasks/${row.id}/edit`)}>
+                        <Pencil className="w-4 h-4" />
+                      </CardAction>
+                      <CardAction label="Delete" danger onClick={(e) => handleDelete(row.id, e)}>
+                        <Trash2 className="w-4 h-4" />
+                      </CardAction>
+                    </div>
+                  </div>
+                </MobileCard>
+              );
+            })}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <Table>
             <Thead>
               <tr>
@@ -258,8 +307,9 @@ export default function TasksList() {
               })}
             </Tbody>
           </Table>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

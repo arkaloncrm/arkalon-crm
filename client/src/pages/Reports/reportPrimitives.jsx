@@ -65,12 +65,13 @@ export function ReportShell({ filters, action, children }) {
   return (
     <div className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm overflow-hidden">
       {hasBar && (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-arkalon-lightgrey flex-wrap">
-          <div className="flex items-center gap-4 flex-wrap">{filters}</div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-arkalon-lightgrey">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">{filters}</div>
           <div className="flex-shrink-0">{action}</div>
         </div>
       )}
-      {children}
+      {/* Report tables can be dense — allow horizontal scroll within the card */}
+      <div className="overflow-x-auto">{children}</div>
     </div>
   );
 }

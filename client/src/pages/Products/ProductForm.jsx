@@ -147,7 +147,7 @@ export default function ProductForm() {
           <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
             <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Product Details</h3>
           </div>
-          <div className="p-4 grid grid-cols-2 gap-4">
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div className="col-span-2">
               <label className={labelCls}>Product Name *</label>
@@ -243,9 +243,9 @@ export default function ProductForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 mt-4">
-          <Button type="button" variant="secondary" onClick={() => navigate('/products')}>Cancel</Button>
-          <Button type="submit" disabled={saving}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 mt-4">
+          <Button type="button" variant="secondary" onClick={() => navigate('/products')} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">Cancel</Button>
+          <Button type="submit" disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Product'}
           </Button>
         </div>

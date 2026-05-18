@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import Badge from '../../components/UI/Badge.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -89,6 +90,53 @@ function KanbanColumn({ status, leads, onDragStart, onDragOver, onDrop, onLeadCl
   );
 }
 
+// Mobile fallback — drag-and-drop is unreliable on touch, so each status is a
+// collapsible section and each card carries a Change Status dropdown instead.
+function MobileStatus({ status, leads, onLeadClick, onStatusChange }) {
+  const [open, setOpen] = useState(false);
+  const colours = STATUS_COLOURS[status] || STATUS_COLOURS['New'];
+  return (
+    <div className="border border-arkalon-lightgrey rounded-lg overflow-hidden bg-white">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-3 ${colours.header}`}
+      >
+        <span className="font-montserrat font-semibold text-xs uppercase tracking-wide truncate">{status}</span>
+        <span className="flex items-center gap-2 flex-shrink-0">
+          <span className="bg-white/60 text-xs font-semibold px-1.5 py-0.5 rounded-full">{leads.length}</span>
+          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </span>
+      </button>
+      {open && (
+        <div className="p-2 space-y-2 bg-slate-50">
+          {leads.length === 0 ? (
+            <div className="text-center text-slate-400 text-xs font-opensans py-4">No leads</div>
+          ) : leads.map(lead => (
+            <div key={lead.id} className={`bg-white rounded-lg border border-arkalon-lightgrey border-l-4 ${colours.border} p-3`}>
+              <div onClick={() => onLeadClick(lead.id)} className="cursor-pointer">
+                <div className="font-montserrat font-semibold text-arkalon-navy text-sm truncate">{lead.company}</div>
+                {(lead.first_name || lead.last_name) && (
+                  <div className="text-xs text-slate-500 font-opensans truncate">{lead.first_name} {lead.last_name}</div>
+                )}
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-100">
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Change Status</label>
+                <select
+                  value={lead.lead_status}
+                  onChange={e => onStatusChange(lead, e.target.value)}
+                  className="mt-0.5 w-full px-2 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+                >
+                  {LEAD_STATUSES.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LeadKanban({ filters = {}, onLeadClick }) {
   const { addToast } = useToast();
   const [leadsByStatus, setLeadsByStatus] = useState(() =>
@@ -116,6 +164,28 @@ export default function LeadKanban({ filters = {}, onLeadClick }) {
 
   const handleDragStart = (lead) => setDragging(lead);
   const handleDragOver = () => {};
+
+  const handleMobileStatusChange = async (lead, newStatus) => {
+    if (lead.lead_status === newStatus) return;
+    const originalStatus = lead.lead_status;
+    setLeadsByStatus(prev => {
+      const next = { ...prev };
+      next[originalStatus] = (prev[originalStatus] || []).filter(l => l.id !== lead.id);
+      next[newStatus] = [{ ...lead, lead_status: newStatus }, ...(prev[newStatus] || [])];
+      return next;
+    });
+    try {
+      await leadsApi.update(lead.id, { lead_status: newStatus });
+    } catch {
+      setLeadsByStatus(prev => {
+        const next = { ...prev };
+        next[newStatus] = (prev[newStatus] || []).filter(l => l.id !== lead.id);
+        next[originalStatus] = [{ ...lead, lead_status: originalStatus }, ...(prev[originalStatus] || [])];
+        return next;
+      });
+      addToast('Failed to update lead status. Please try again.', 'error');
+    }
+  };
 
   const handleDrop = async (newStatus) => {
     if (!dragging || dragging.lead_status === newStatus) { setDragging(null); return; }
@@ -157,18 +227,33 @@ export default function LeadKanban({ filters = {}, onLeadClick }) {
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
-      {LEAD_STATUSES.map(status => (
-        <KanbanColumn
-          key={status}
-          status={status}
-          leads={leadsByStatus[status] || []}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onLeadClick={onLeadClick}
-        />
-      ))}
-    </div>
+    <>
+      {/* Mobile: vertical collapsible statuses with a Change Status dropdown */}
+      <div className="sm:hidden space-y-2">
+        {LEAD_STATUSES.map(status => (
+          <MobileStatus
+            key={status}
+            status={status}
+            leads={leadsByStatus[status] || []}
+            onLeadClick={onLeadClick}
+            onStatusChange={handleMobileStatusChange}
+          />
+        ))}
+      </div>
+      {/* Desktop: horizontal drag-and-drop board */}
+      <div className="hidden sm:flex gap-3 overflow-x-auto pb-4">
+        {LEAD_STATUSES.map(status => (
+          <KanbanColumn
+            key={status}
+            status={status}
+            leads={leadsByStatus[status] || []}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onLeadClick={onLeadClick}
+          />
+        ))}
+      </div>
+    </>
   );
 }

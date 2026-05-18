@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -142,13 +143,50 @@ export default function ContactsList() {
         )}
       </div>
 
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="p-8 space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
-        ) : contacts.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
+      ) : contacts.length === 0 ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <EmptyState title="No contacts yet" description="Create your first contact to start building relationships." action={() => navigate('/contacts/new')} actionLabel="Create your first contact" />
-        ) : (
-          <table className="w-full text-sm">
+        </div>
+      ) : (
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="sm:hidden space-y-3">
+            {paginated.map(contact => (
+              <MobileCard key={contact.id} onClick={() => navigate(`/contacts/${contact.id}`)}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">
+                    {contact.first_name} {contact.last_name}
+                  </span>
+                  {contact.business_unit && (
+                    <Badge className={`${BU_COLOURS[contact.business_unit] || 'bg-gray-100 text-gray-600'} flex-shrink-0`}>
+                      {contact.business_unit}
+                    </Badge>
+                  )}
+                </div>
+                {contact.account_name && (
+                  <div className="text-xs text-slate-500 font-opensans mt-0.5 truncate">{contact.account_name}</div>
+                )}
+                <div className="mt-2 space-y-0.5">
+                  <div className="text-xs text-slate-500 font-opensans truncate">{contact.email || '—'}</div>
+                  <div className="text-xs text-slate-500 font-opensans truncate">{contact.phone || '—'}</div>
+                </div>
+                <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
+                  <CardAction label="Edit" onClick={() => navigate(`/contacts/${contact.id}/edit`)}>
+                    <Pencil className="w-4 h-4" />
+                  </CardAction>
+                  <CardAction label="Delete" danger onClick={() => setDeleteTarget(contact)}>
+                    <Trash2 className="w-4 h-4" />
+                  </CardAction>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-arkalon-lightgrey">
               <tr>
                 <th className="px-3 py-2.5 w-8">
@@ -209,9 +247,11 @@ export default function ContactsList() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
-      </div>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {contacts.length > PAGE_SIZE && (
         <div className="flex items-center justify-between mt-3 px-1">

@@ -138,7 +138,7 @@ export default function ContactDetail() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
           <button onClick={() => navigate('/contacts')} className="flex items-center gap-1 text-arkalon-blue text-sm hover:underline font-opensans mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Contacts
@@ -197,7 +197,7 @@ export default function ContactDetail() {
       />
 
       {/* Two-column */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <SectionCard title="Contact Information">
           <FieldRow label="Salutation" value={contact.salutation} />
           <FieldRow label="First Name" value={contact.first_name} />

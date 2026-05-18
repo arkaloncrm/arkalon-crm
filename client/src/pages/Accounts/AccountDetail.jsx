@@ -136,7 +136,7 @@ export default function AccountDetail() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
           <button onClick={() => navigate('/accounts')} className="flex items-center gap-1 text-arkalon-blue text-sm hover:underline font-opensans mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Accounts
@@ -205,7 +205,7 @@ export default function AccountDetail() {
       />
 
       {/* Two-column */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <SectionCard title="Account Information">
           <FieldRow label="Account Name" value={account.name} />
           <FieldRow label="Website" value={account.website} />

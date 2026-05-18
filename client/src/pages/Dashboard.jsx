@@ -136,17 +136,17 @@ export default function Dashboard() {
       </div>
 
       {/* Commission Summary */}
-      <div className="bg-white border-2 border-arkalon-blue rounded-lg px-5 py-4 mb-6 flex items-center justify-between">
+      <div className="bg-white border-2 border-arkalon-blue rounded-lg px-4 sm:px-5 py-4 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-montserrat font-bold text-slate-400 uppercase tracking-widest mb-1">Total Projected Commission</div>
-          <div className="text-3xl font-montserrat font-bold" style={{ color: '#0073C6' }}>
+          <div className="text-2xl sm:text-3xl font-montserrat font-bold" style={{ color: '#0073C6' }}>
             {dealSummary ? formatCurrencyCompact(dealSummary.projected_commission_total) : '—'}
           </div>
           <div className="text-xs text-slate-400 font-opensans mt-1">
             Across {dealSummary?.open_deal_count ?? '—'} open deals
           </div>
         </div>
-        <div className="text-right">
+        <div className="sm:text-right">
           <div className="text-xs font-montserrat font-semibold text-slate-400 uppercase tracking-wide mb-1">Open Pipeline</div>
           <div className="text-xl font-montserrat font-bold text-arkalon-navy">
             {dealSummary ? formatCurrencyCompact(dealSummary.open_gross_total) : '—'}
@@ -216,7 +216,39 @@ export default function Dashboard() {
             </button>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <>
+            {/* Mobile: stacked list */}
+            <div className="sm:hidden divide-y divide-arkalon-lightgrey">
+              {recentLeads.map(lead => (
+                <div
+                  key={lead.id}
+                  onClick={() => navigate(`/leads/${lead.id}`)}
+                  className="px-4 py-3 cursor-pointer hover:bg-blue-50/40 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">{lead.company}</span>
+                    {lead.business_unit && (
+                      <Badge className={`${BU_COLOURS[lead.business_unit] || 'bg-gray-100 text-gray-600'} flex-shrink-0`}>
+                        {lead.business_unit}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className="text-xs text-slate-500 font-opensans truncate">
+                      {[lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'}
+                    </span>
+                    <span className="text-xs text-slate-400 font-opensans flex-shrink-0">{formatRelative(lead.created_at)}</span>
+                  </div>
+                  {lead.lead_status && (
+                    <Badge className={`${STATUS_COLOURS[lead.lead_status] || 'bg-gray-100 text-gray-600'} mt-1.5`}>
+                      {lead.lead_status}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table */}
+            <table className="w-full text-sm hidden sm:table">
             <thead className="bg-slate-50 border-b border-arkalon-lightgrey">
               <tr>
                 {['Company', 'Contact', 'Status', 'Business Unit', 'Created'].map(h => (
@@ -251,12 +283,13 @@ export default function Dashboard() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </>
         )}
       </div>
 
       {/* Tasks Due Today + Recent Activities */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Tasks Due Today */}
         <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey">

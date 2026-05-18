@@ -189,7 +189,7 @@ export default function TaskForm() {
       {/* Section 1 — Task Details */}
       <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-4">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-xs uppercase tracking-wide mb-4">Task Details</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="col-span-2">
             <label className="block text-xs text-slate-500 font-opensans mb-1">Subject <span className="text-red-500">*</span></label>
             <input type="text" value={form.subject} onChange={e => handleChange('subject', e.target.value)} required
@@ -260,7 +260,7 @@ export default function TaskForm() {
       {/* Section 2 — Link to Record */}
       <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-4">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-xs uppercase tracking-wide mb-4">Link to Record</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-slate-500 font-opensans mb-1">Lead</label>
             <select value={form.lead_id} onChange={e => handleChange('lead_id', e.target.value)}
@@ -300,7 +300,7 @@ export default function TaskForm() {
       </div>
 
       {/* Section 3 — Description */}
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-20">
+      <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-40 sm:mb-20">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-xs uppercase tracking-wide mb-4">Description</h3>
         <textarea rows={4} value={form.description} onChange={e => handleChange('description', e.target.value)}
           className="w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 resize-none"
@@ -308,9 +308,12 @@ export default function TaskForm() {
       </div>
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-arkalon-lightgrey px-6 py-3 flex justify-end gap-3 z-10">
-        <Button type="button" variant="secondary" onClick={() => navigate('/tasks')} disabled={saving}>Cancel</Button>
-        <Button type="submit" disabled={saving}>{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Task'}</Button>
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-arkalon-lightgrey px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 z-10"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
+        <Button type="button" variant="secondary" onClick={() => navigate('/tasks')} disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">Cancel</Button>
+        <Button type="submit" disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Task'}</Button>
       </div>
     </form>
   );

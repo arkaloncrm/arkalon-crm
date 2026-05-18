@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import LeadKanban from './LeadKanban.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -225,22 +226,70 @@ export default function LeadsList() {
         <LeadKanban filters={{ business_unit: buFilter }} onLeadClick={id => navigate(`/leads/${id}`)} />
       ) : (
         <>
-          <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-            {loading ? (
-              <div className="p-8 space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
-                ))}
-              </div>
-            ) : leads.length === 0 ? (
+          {loading ? (
+            <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : leads.length === 0 ? (
+            <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
               <EmptyState
                 title="No leads yet"
                 description="Start building your pipeline by creating your first lead."
                 action={() => navigate('/leads/new')}
                 actionLabel="Create your first lead"
               />
-            ) : (
-              <table className="w-full text-sm">
+            </div>
+          ) : (
+            <>
+              {/* Mobile: stacked cards */}
+              <div className="sm:hidden space-y-3">
+                {paginated.map(lead => (
+                  <MobileCard key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className={`font-semibold font-opensans text-sm truncate ${lead.converted ? 'line-through text-slate-400' : 'text-arkalon-blue'}`}>
+                        {lead.company}
+                      </span>
+                      {lead.business_unit && (
+                        <Badge className={`${BU_COLOURS[lead.business_unit] || 'bg-gray-100 text-gray-600'} flex-shrink-0`}>
+                          {lead.business_unit}
+                        </Badge>
+                      )}
+                    </div>
+                    {(lead.first_name || lead.last_name) && (
+                      <div className="text-xs text-slate-500 font-opensans mt-0.5 truncate">
+                        {[lead.first_name, lead.last_name].filter(Boolean).join(' ')}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {lead.lead_status && (
+                        <Badge className={STATUS_COLOURS[lead.lead_status] || 'bg-gray-100 text-gray-600'}>{lead.lead_status}</Badge>
+                      )}
+                      {lead.priority && (
+                        <Badge className={PRIORITY_COLOURS[lead.priority] || 'bg-gray-100 text-gray-600'}>{lead.priority}</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+                      <span className="text-xs text-slate-400 font-opensans truncate">
+                        {lead.lead_source || 'No source'} · {formatRelative(lead.updated_at)}
+                      </span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <CardAction label="Edit" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
+                          <Pencil className="w-4 h-4" />
+                        </CardAction>
+                        <CardAction label="Delete" danger onClick={() => setDeleteTarget(lead)}>
+                          <Trash2 className="w-4 h-4" />
+                        </CardAction>
+                      </div>
+                    </div>
+                  </MobileCard>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-arkalon-lightgrey">
                   <tr>
                     <th className="px-3 py-2.5 w-8">
@@ -338,9 +387,11 @@ export default function LeadsList() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            )}
-          </div>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Pagination */}
           {leads.length > PAGE_SIZE && (

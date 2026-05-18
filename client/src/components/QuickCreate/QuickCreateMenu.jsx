@@ -28,10 +28,10 @@ export default function QuickCreateMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-arkalon-blue text-white text-sm font-montserrat font-semibold rounded-full hover:bg-blue-700 transition-colors"
+        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 bg-arkalon-blue text-white text-sm font-montserrat font-semibold rounded-full hover:bg-blue-700 transition-colors"
       >
         <Plus className="w-4 h-4" />
-        Create
+        <span className="hidden sm:inline">Create</span>
       </button>
 
       {open && (

@@ -136,7 +136,7 @@ export default function ContactForm() {
           <div className="px-5 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
             <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Contact Information</h3>
           </div>
-          <div className="p-5 grid grid-cols-2 gap-4">
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Salutation">
               <select className={selectCls()} value={form.salutation} onChange={set('salutation')}>
                 <option value="">—</option>
@@ -188,9 +188,9 @@ export default function ContactForm() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 -mx-6 -mb-6 bg-white border-t border-arkalon-lightgrey px-6 py-3 flex justify-end gap-2 z-30">
-        <Button type="button" variant="secondary" onClick={() => navigate('/contacts')}>Cancel</Button>
-        <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Contact'}</Button>
+      <div className="sticky bottom-0 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 bg-white border-t border-arkalon-lightgrey px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:justify-end gap-2 z-30">
+        <Button type="button" variant="secondary" onClick={() => navigate('/contacts')} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">Cancel</Button>
+        <Button type="submit" disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">{saving ? 'Saving…' : 'Save Contact'}</Button>
       </div>
     </form>
   );

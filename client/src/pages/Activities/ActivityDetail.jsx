@@ -80,7 +80,7 @@ export default function ActivityDetail() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
           <button onClick={() => navigate('/activities')} className="flex items-center gap-1 text-arkalon-blue text-sm hover:underline font-opensans mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Activities
@@ -139,7 +139,7 @@ export default function ActivityDetail() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SectionCard title="Activity Details">
           <FieldRow label="Type" value={activity.type} />
           <FieldRow label="Subject" value={activity.subject} />

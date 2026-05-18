@@ -237,7 +237,7 @@ export default function DealDetail() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <button onClick={() => navigate('/deals')} className="text-arkalon-blue text-sm hover:underline font-opensans">
@@ -267,7 +267,7 @@ export default function DealDetail() {
       </div>
 
       {/* Inline stage change */}
-      <div className="flex items-center gap-2 mb-5 bg-white border border-arkalon-lightgrey rounded-lg px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 mb-5 bg-white border border-arkalon-lightgrey rounded-lg px-4 py-3">
         <span className="text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide mr-1">Change Stage</span>
         <select
           className="px-3 py-1.5 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 bg-white"
@@ -281,7 +281,7 @@ export default function DealDetail() {
         </Button>
       </div>
 
-      <div className="flex gap-5 items-start">
+      <div className="flex flex-col lg:flex-row gap-5 lg:items-start">
         <div className="flex-1 min-w-0">
 
           <ExecutiveSummary
@@ -296,7 +296,7 @@ export default function DealDetail() {
               <h3 className="font-montserrat font-bold text-white text-sm uppercase tracking-wider">Deal Financials</h3>
             </div>
             <div className="p-5">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mb-4">
                 <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
                   <span className="text-sm text-slate-500 font-opensans">Gross Value (Total Contract)</span>
                   <span className="font-semibold text-slate-800 font-opensans">{formatCurrency(deal.gross_total_value)}</span>
@@ -427,7 +427,7 @@ export default function DealDetail() {
         </div>
 
         {/* Side Panel */}
-        <div className="w-64 flex-shrink-0 space-y-4">
+        <div className="w-full lg:w-64 lg:flex-shrink-0 space-y-4">
 
           {/* Linked Contacts */}
           <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">

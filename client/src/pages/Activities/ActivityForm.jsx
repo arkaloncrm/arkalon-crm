@@ -178,7 +178,7 @@ export default function ActivityForm() {
       {/* Section 1 — Activity Details */}
       <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-4">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-xs uppercase tracking-wide mb-4">Activity Details</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-slate-500 font-opensans mb-1">Type <span className="text-red-500">*</span></label>
             <select value={form.type} onChange={e => handleChange('type', e.target.value)} required
@@ -258,7 +258,7 @@ export default function ActivityForm() {
       {/* Section 2 — Link to Record */}
       <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-4">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-xs uppercase tracking-wide mb-4">Link to Record</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-slate-500 font-opensans mb-1">Lead</label>
             <select value={form.lead_id} onChange={e => handleChange('lead_id', e.target.value)}
@@ -298,7 +298,7 @@ export default function ActivityForm() {
       </div>
 
       {/* Section 3 — Notes */}
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-20">
+      <div className="bg-white border border-arkalon-lightgrey rounded-lg p-5 mb-40 sm:mb-20">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-xs uppercase tracking-wide mb-4">Notes</h3>
         <div className="space-y-4">
           <div>
@@ -307,7 +307,7 @@ export default function ActivityForm() {
               className="w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 resize-none"
               placeholder="Activity notes…" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-slate-500 font-opensans mb-1">Next Action</label>
               <input type="text" value={form.next_action} onChange={e => handleChange('next_action', e.target.value)}
@@ -324,9 +324,12 @@ export default function ActivityForm() {
       </div>
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-arkalon-lightgrey px-6 py-3 flex justify-end gap-3 z-10">
-        <Button type="button" variant="secondary" onClick={() => navigate('/activities')} disabled={saving}>Cancel</Button>
-        <Button type="submit" disabled={saving}>{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Log Activity'}</Button>
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-arkalon-lightgrey px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 z-10"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
+        <Button type="button" variant="secondary" onClick={() => navigate('/activities')} disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">Cancel</Button>
+        <Button type="submit" disabled={saving} className="w-full sm:w-auto justify-center min-h-[44px] sm:min-h-0">{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Log Activity'}</Button>
       </div>
     </form>
   );

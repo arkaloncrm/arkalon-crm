@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
+import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { activitiesApi } from '../../api/activities.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { formatLocalDatetime } from '../../utils/formatDate.js';
@@ -130,17 +131,59 @@ export default function ActivitiesList() {
         </div>
       </div>
 
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-slate-400 font-opensans text-sm">Loading…</div>
-        ) : filtered.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 text-center text-slate-400 font-opensans text-sm">Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <EmptyState
             title="No activities yet"
             description="Log calls, meetings, and emails to track your outreach."
             action={() => navigate('/activities/new')}
             actionLabel="Log your first activity"
           />
-        ) : (
+        </div>
+      ) : (
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="sm:hidden space-y-3">
+            {filtered.map(row => (
+              <MobileCard key={row.id} onClick={() => navigate(`/activities/${row.id}`)}>
+                <div className="flex items-start gap-2">
+                  <TypeIcon type={row.type} />
+                  <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate flex-1 min-w-0">{row.subject}</span>
+                </div>
+                {(row.contact_name || row.lead_company || row.account_name) && (
+                  <div className="text-xs text-slate-500 font-opensans mt-1 truncate">
+                    {row.contact_name || row.lead_company || row.account_name}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {row.direction && (
+                    <Badge className={DIRECTION_COLOURS[row.direction] || 'bg-gray-100 text-gray-600'}>{row.direction}</Badge>
+                  )}
+                  {row.business_unit && (
+                    <Badge className={BU_COLOURS[row.business_unit] || 'bg-gray-100 text-gray-600'}>{row.business_unit}</Badge>
+                  )}
+                </div>
+                {row.outcome && (
+                  <div className="text-xs text-slate-500 font-opensans mt-1.5">{row.outcome}</div>
+                )}
+                <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+                  <span className="text-xs text-slate-400 font-opensans truncate">{formatLocalDatetime(row.start_datetime)}</span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <CardAction label="Edit" onClick={() => navigate(`/activities/${row.id}/edit`)}>
+                      <Pencil className="w-4 h-4" />
+                    </CardAction>
+                    <CardAction label="Delete" danger onClick={(e) => handleDelete(row.id, e)}>
+                      <Trash2 className="w-4 h-4" />
+                    </CardAction>
+                  </div>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <Table>
             <Thead>
               <tr>
@@ -203,8 +246,9 @@ export default function ActivitiesList() {
               ))}
             </Tbody>
           </Table>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

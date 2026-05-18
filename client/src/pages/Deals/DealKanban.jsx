@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import Badge from '../../components/UI/Badge.jsx';
 import { DEAL_STAGES } from '../../utils/constants.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
@@ -85,6 +86,56 @@ function KanbanColumn({ stage, deals, onDragStart, onDragOver, onDrop, onDealCli
   );
 }
 
+// Mobile fallback — drag-and-drop is unreliable on touch, so each stage is a
+// collapsible section and each card carries a Change Stage dropdown instead.
+function MobileStage({ stage, deals, onDealClick, onStageChange }) {
+  const [open, setOpen] = useState(false);
+  const styles = COLUMN_STYLES[stage] || COLUMN_STYLES['Prospect'];
+  return (
+    <div className="border border-arkalon-lightgrey rounded-lg overflow-hidden bg-white">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-3 ${styles.header}`}
+      >
+        <span className="font-montserrat font-semibold text-xs uppercase tracking-wide truncate">{stage}</span>
+        <span className="flex items-center gap-2 flex-shrink-0">
+          <span className="bg-white/60 text-xs font-semibold px-1.5 py-0.5 rounded-full">{deals.length}</span>
+          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </span>
+      </button>
+      {open && (
+        <div className="p-2 space-y-2 bg-slate-50">
+          {deals.length === 0 ? (
+            <div className="text-center text-slate-400 text-xs font-opensans py-4">No deals</div>
+          ) : deals.map(deal => (
+            <div key={deal.id} className={`bg-white rounded-lg border border-arkalon-lightgrey border-l-4 ${styles.border} p-3`}>
+              <div onClick={() => onDealClick(deal.id)} className="cursor-pointer">
+                <div className="font-montserrat font-semibold text-arkalon-navy text-sm truncate">{deal.deal_name}</div>
+                {deal.account_name && (
+                  <div className="text-xs text-slate-500 font-opensans truncate">{deal.account_name}</div>
+                )}
+                <div className="font-bold text-sm mt-1" style={{ color: '#0073C6' }}>
+                  {formatCurrency(deal.total_contract_earnings)}
+                </div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-100">
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Change Stage</label>
+                <select
+                  value={deal.stage}
+                  onChange={e => onStageChange(deal, e.target.value)}
+                  className="mt-0.5 w-full px-2 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+                >
+                  {DEAL_STAGES.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DealKanban({ deals, onStageChange, onDealClick }) {
   const { addToast } = useToast();
   const [draggingDeal, setDraggingDeal] = useState(null);
@@ -131,21 +182,50 @@ export default function DealKanban({ deals, onStageChange, onDealClick }) {
     }
   }, [draggingDeal, localDeals, deals, onStageChange, addToast]);
 
+  const handleMobileStageChange = useCallback(async (deal, targetStage) => {
+    if (deal.stage === targetStage) return;
+    const prevDeals = localDeals !== null ? localDeals : deals;
+    setLocalDeals(prevDeals.map(d => (d.id === deal.id ? { ...d, stage: targetStage } : d)));
+    try {
+      await dealsApi.updateStage(deal.id, targetStage);
+      onStageChange();
+      setLocalDeals(null);
+    } catch {
+      setLocalDeals(prevDeals);
+      addToast('Failed to update deal stage', 'error');
+    }
+  }, [localDeals, deals, onStageChange, addToast]);
+
   return (
-    <div className="overflow-x-auto pb-4">
-      <div className="flex gap-3 min-w-max">
+    <>
+      {/* Mobile: vertical collapsible stages with a Change Stage dropdown */}
+      <div className="sm:hidden space-y-2">
         {DEAL_STAGES.map(stage => (
-          <KanbanColumn
+          <MobileStage
             key={stage}
             stage={stage}
             deals={dealsByStage[stage] || []}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
             onDealClick={onDealClick}
+            onStageChange={handleMobileStageChange}
           />
         ))}
       </div>
-    </div>
+      {/* Desktop: horizontal drag-and-drop board */}
+      <div className="hidden sm:block overflow-x-auto pb-4">
+        <div className="flex gap-3 min-w-max">
+          {DEAL_STAGES.map(stage => (
+            <KanbanColumn
+              key={stage}
+              stage={stage}
+              deals={dealsByStage[stage] || []}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDealClick={onDealClick}
+            />
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

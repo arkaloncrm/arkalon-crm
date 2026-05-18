@@ -88,8 +88,11 @@ export function CallLogPanel({ call, onClose, onLogged }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 pointer-events-none">
-      <div className="pointer-events-auto mx-auto max-w-3xl bg-white border border-arkalon-lightgrey rounded-t-lg shadow-2xl">
+    <div
+      className="fixed inset-x-0 bottom-0 z-40 px-2 sm:px-4 pointer-events-none"
+      style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+    >
+      <div className="pointer-events-auto mx-auto max-w-3xl max-h-[85dvh] overflow-y-auto bg-white border border-arkalon-lightgrey rounded-t-lg shadow-2xl">
         <div className="flex items-center justify-between px-4 py-3 bg-arkalon-navy rounded-t-lg">
           <div className="flex items-center gap-2 text-white">
             <Phone className="w-4 h-4" />
@@ -100,7 +103,7 @@ export function CallLogPanel({ call, onClose, onLogged }) {
           </button>
         </div>
         <div className="p-4">
-          <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
               <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans block">Contact</span>
               <span className="text-sm font-opensans text-slate-700">{call.name}</span>
@@ -114,7 +117,7 @@ export function CallLogPanel({ call, onClose, onLogged }) {
               <span className="text-sm font-opensans text-slate-700">{formatDateTime(call.timestamp)}</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
               <label className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans block mb-1">Business Unit</label>
               <select
@@ -141,6 +144,12 @@ export function CallLogPanel({ call, onClose, onLogged }) {
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
+            onFocus={e => {
+              // iOS: the virtual keyboard can obscure a bottom-fixed panel —
+              // nudge the field into view once the keyboard has animated in.
+              const el = e.target;
+              setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+            }}
             rows={2}
             placeholder="Call notes…"
             className="w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 resize-none mb-3"
