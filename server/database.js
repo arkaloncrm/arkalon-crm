@@ -310,8 +310,19 @@ async function seedDefaultProducts() {
   if (seeded > 0) console.log(`[DB] Default products seeded (${seeded})`);
 }
 
+// Additive column migrations — safe no-ops once the column exists.
+const COLUMN_MIGRATIONS = [
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
+  `ALTER TABLE accounts ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
+  `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
+  `ALTER TABLE deals ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
+];
+
 async function initDb() {
   await pool.query(SCHEMA);
+  for (const sql of COLUMN_MIGRATIONS) {
+    await pool.query(sql);
+  }
   await seedDefaultUser();
   await seedDefaultProducts();
   console.log('[DB] PostgreSQL schema initialised (12 tables ready)');

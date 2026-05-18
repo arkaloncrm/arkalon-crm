@@ -123,7 +123,7 @@ router.put('/:id', async (req, res) => {
     const fields = [
       'name', 'website', 'industry', 'employee_count', 'annual_revenue', 'phone',
       'billing_street', 'billing_city', 'billing_state', 'billing_postcode', 'billing_country',
-      'description', 'business_unit', 'account_owner_id',
+      'description', 'executive_summary', 'business_unit', 'account_owner_id',
     ];
     const updates = fields.filter(f => req.body[f] !== undefined);
     if (updates.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });

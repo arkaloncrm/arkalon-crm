@@ -117,7 +117,7 @@ router.put('/:id', async (req, res) => {
     const fields = [
       'salutation', 'first_name', 'last_name', 'title', 'company', 'email', 'phone', 'mobile',
       'website', 'industry', 'employee_count', 'annual_revenue', 'lead_source', 'lead_status',
-      'business_unit', 'target_type', 'description', 'warm_path', 'next_action',
+      'business_unit', 'target_type', 'description', 'executive_summary', 'warm_path', 'next_action',
       'next_action_date', 'last_contacted', 'priority', 'lead_owner_id',
       'street', 'city', 'state', 'postcode', 'country',
     ];

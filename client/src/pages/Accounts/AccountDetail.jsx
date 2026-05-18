@@ -4,6 +4,8 @@ import { ArrowLeft, Pencil, Trash2, ExternalLink, Plus, X } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
+import { PhoneLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { accountsApi } from '../../api/accounts.js';
 import { notesApi } from '../../api/notes.js';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
@@ -98,6 +100,7 @@ export default function AccountDetail() {
   const [activeTab, setActiveTab] = useState('contacts');
   const [showDelete, setShowDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [call, setCall] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -122,6 +125,14 @@ export default function AccountDetail() {
 
   if (loading) return <div className="space-y-3"><div className="h-10 bg-slate-100 rounded animate-pulse w-1/3" /><div className="h-64 bg-slate-100 rounded animate-pulse" /></div>;
   if (!account) return <div className="text-slate-500 font-opensans text-sm">Account not found.</div>;
+
+  const handleCall = (phone) => setCall({
+    phone,
+    name: account.name,
+    businessUnit: account.business_unit,
+    link: { account_id: Number(id) },
+    timestamp: new Date().toISOString(),
+  });
 
   return (
     <div>
@@ -158,7 +169,7 @@ export default function AccountDetail() {
         {account.phone && (
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Phone</span>
-            <span className="text-sm font-opensans text-slate-700">{account.phone}</span>
+            <PhoneLink phone={account.phone} onCall={handleCall} className="text-sm font-opensans" />
           </div>
         )}
         {account.website && (
@@ -187,6 +198,12 @@ export default function AccountDetail() {
         </div>
       </div>
 
+      <ExecutiveSummary
+        value={account.executive_summary}
+        entityName="account"
+        onSave={(v) => accountsApi.update(id, { executive_summary: v })}
+      />
+
       {/* Two-column */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <SectionCard title="Account Information">
@@ -195,7 +212,7 @@ export default function AccountDetail() {
           <FieldRow label="Industry" value={account.industry} />
           <FieldRow label="Employee Count" value={account.employee_count} />
           <FieldRow label="Annual Revenue" value={account.annual_revenue ? formatCurrency(account.annual_revenue) : null} />
-          <FieldRow label="Phone" value={account.phone} />
+          <FieldRow label="Phone" value={<PhoneLink phone={account.phone} onCall={handleCall} />} />
           <FieldRow label="Business Unit" value={account.business_unit} />
           {account.description && (
             <div className="py-2">
@@ -323,6 +340,8 @@ export default function AccountDetail() {
         message={`Delete "${account.name}"? This action cannot be undone.`}
         loading={deleteLoading}
       />
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
     </div>
   );
 }

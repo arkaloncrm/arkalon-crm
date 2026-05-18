@@ -4,6 +4,8 @@ import { ArrowLeft, Pencil, Trash2, Plus, X } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
+import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { notesApi } from '../../api/notes.js';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
@@ -98,6 +100,7 @@ export default function ContactDetail() {
   const [activeTab, setActiveTab] = useState('notes');
   const [showDelete, setShowDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [call, setCall] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -124,6 +127,14 @@ export default function ContactDetail() {
   if (!contact) return <div className="text-slate-500 font-opensans text-sm">Contact not found.</div>;
 
   const fullName = [contact.salutation, contact.first_name, contact.last_name].filter(Boolean).join(' ');
+
+  const handleCall = (phone) => setCall({
+    phone,
+    name: fullName,
+    businessUnit: contact.business_unit,
+    link: { contact_id: Number(id) },
+    timestamp: new Date().toISOString(),
+  });
 
   return (
     <div>
@@ -160,13 +171,13 @@ export default function ContactDetail() {
         {contact.email && (
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Email</span>
-            <a href={`mailto:${contact.email}`} className="text-sm font-opensans text-arkalon-blue hover:underline">{contact.email}</a>
+            <EmailLink email={contact.email} refName={contact.account_name || fullName} className="text-sm font-opensans" />
           </div>
         )}
         {contact.phone && (
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Phone</span>
-            <span className="text-sm font-opensans text-slate-700">{contact.phone}</span>
+            <PhoneLink phone={contact.phone} onCall={handleCall} className="text-sm font-opensans" />
           </div>
         )}
         {contact.account_name && (
@@ -179,6 +190,12 @@ export default function ContactDetail() {
         )}
       </div>
 
+      <ExecutiveSummary
+        value={contact.executive_summary}
+        entityName="contact"
+        onSave={(v) => contactsApi.update(id, { executive_summary: v })}
+      />
+
       {/* Two-column */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <SectionCard title="Contact Information">
@@ -186,9 +203,9 @@ export default function ContactDetail() {
           <FieldRow label="First Name" value={contact.first_name} />
           <FieldRow label="Last Name" value={contact.last_name} />
           <FieldRow label="Title" value={contact.title} />
-          <FieldRow label="Email" value={contact.email} />
-          <FieldRow label="Phone" value={contact.phone} />
-          <FieldRow label="Mobile" value={contact.mobile} />
+          <FieldRow label="Email" value={<EmailLink email={contact.email} refName={contact.account_name || fullName} />} />
+          <FieldRow label="Phone" value={<PhoneLink phone={contact.phone} onCall={handleCall} />} />
+          <FieldRow label="Mobile" value={<PhoneLink phone={contact.mobile} onCall={handleCall} />} />
           <FieldRow label="LinkedIn" value={contact.linkedin_url} />
           <FieldRow label="Department" value={contact.department} />
           <FieldRow label="Business Unit" value={contact.business_unit} />
@@ -261,6 +278,8 @@ export default function ContactDetail() {
         message={`Delete "${fullName}"? This action cannot be undone.`}
         loading={deleteLoading}
       />
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
     </div>
   );
 }

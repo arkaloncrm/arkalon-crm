@@ -9,6 +9,11 @@ export const dealsApi = {
   getById: (id) => api.get(`/deals/${id}`),
   create: (data) => api.post('/deals', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
+  patch: (id, data) => api.patch(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
   updateStage: (id, stage) => api.patch(`/deals/${id}/stage`, { stage }),
+  getContacts: (id) => api.get(`/deals/${id}/contacts`),
+  addContact: (id, data) => api.post(`/deals/${id}/contacts`, data),
+  updateContactRole: (id, contactId, role) => api.patch(`/deals/${id}/contacts/${contactId}`, { role }),
+  removeContact: (id, contactId) => api.delete(`/deals/${id}/contacts/${contactId}`),
 };

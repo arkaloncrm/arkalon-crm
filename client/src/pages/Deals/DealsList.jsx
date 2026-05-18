@@ -25,6 +25,80 @@ function isCloseDatePast(dateStr, stage) {
   return new Date(dateStr) < new Date();
 }
 
+// Inline-editable table cell. Shows display content with a pencil that appears
+// on row hover; double-click swaps in an input. Commits on blur, reverts on
+// Escape. `onCommit` is expected to handle its own errors and never reject.
+function EditableCell({ value, type, options, children, onCommit }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = (e) => {
+    e.stopPropagation();
+    setDraft(value ?? '');
+    setEditing(true);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft === '' ? null : draft;
+    if (next === (value ?? null)) return;
+    onCommit(next);
+  };
+
+  const cancel = () => {
+    setDraft(value ?? '');
+    setEditing(false);
+  };
+
+  const fieldCls =
+    'px-2 py-1 text-sm border border-arkalon-blue rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30';
+
+  if (editing) {
+    return (
+      <Td>
+        <div onClick={e => e.stopPropagation()}>
+          {type === 'select' ? (
+            <select
+              autoFocus
+              value={draft ?? ''}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
+              className={fieldCls}
+            >
+              {options.map(o => <option key={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input
+              autoFocus
+              type="date"
+              value={draft || ''}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
+              className={fieldCls}
+            />
+          )}
+        </div>
+      </Td>
+    );
+  }
+
+  return (
+    <Td>
+      <div
+        onClick={e => e.stopPropagation()}
+        onDoubleClick={startEdit}
+        title="Double-click to edit"
+        className="flex items-center gap-1.5 cursor-text min-h-[1.5rem]"
+      >
+        {children}
+        <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+      </div>
+    </Td>
+  );
+}
+
 export default function DealsList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -66,6 +140,21 @@ export default function DealsList() {
     }
     return true;
   });
+
+  const handleInlineEdit = async (deal, field, value) => {
+    const snapshot = deals;
+    // Optimistic update so the cell reflects the change immediately.
+    setDeals(ds => ds.map(d => (d.id === deal.id ? { ...d, [field]: value } : d)));
+    try {
+      const res = await dealsApi.patch(deal.id, { [field]: value });
+      // Merge the server row — a stage change recomputes probability/forecast/weighted.
+      setDeals(ds => ds.map(d => (d.id === deal.id ? { ...d, ...res.data.data } : d)));
+      addToast('Deal updated', 'success');
+    } catch (err) {
+      setDeals(snapshot);
+      addToast(err.response?.data?.error || 'Failed to update deal', 'error');
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -159,13 +248,14 @@ export default function DealsList() {
                   <Th>MRR</Th>
                   <Th>Commission</Th>
                   <Th>Prob%</Th>
+                  <Th>Next Action</Th>
                   <Th>BU</Th>
                   <Th></Th>
                 </tr>
               </Thead>
               <Tbody>
                 {records.map(r => (
-                  <Tr key={r.id} onClick={() => navigate(`/deals/${r.id}`)}>
+                  <Tr key={r.id} className="group" onClick={() => navigate(`/deals/${r.id}`)}>
                     <Td className="font-semibold text-arkalon-blue">{r.deal_name}</Td>
                     <Td>
                       {r.account_name ? (
@@ -177,14 +267,25 @@ export default function DealsList() {
                         </button>
                       ) : '—'}
                     </Td>
-                    <Td>
+                    <EditableCell
+                      type="select"
+                      value={r.stage}
+                      options={DEAL_STAGES}
+                      onCommit={(v) => handleInlineEdit(r, 'stage', v)}
+                    >
                       <Badge className={STAGE_COLOURS[r.stage] || 'bg-gray-100 text-gray-700'}>
                         {r.stage}
                       </Badge>
-                    </Td>
-                    <Td className={isCloseDatePast(r.close_date, r.stage) ? 'text-red-600 font-semibold' : ''}>
-                      {formatDate(r.close_date)}
-                    </Td>
+                    </EditableCell>
+                    <EditableCell
+                      type="date"
+                      value={r.close_date}
+                      onCommit={(v) => handleInlineEdit(r, 'close_date', v)}
+                    >
+                      <span className={isCloseDatePast(r.close_date, r.stage) ? 'text-red-600 font-semibold' : ''}>
+                        {formatDate(r.close_date)}
+                      </span>
+                    </EditableCell>
                     <Td>{formatCurrency(r.gross_total_value)}</Td>
                     <Td>{r.business_unit === 'ASC' ? formatMrr(r.monthly_recurring_revenue) : '—'}</Td>
                     <Td>
@@ -193,6 +294,13 @@ export default function DealsList() {
                       </span>
                     </Td>
                     <Td>{r.probability != null ? `${r.probability}%` : '—'}</Td>
+                    <EditableCell
+                      type="date"
+                      value={r.next_action_date}
+                      onCommit={(v) => handleInlineEdit(r, 'next_action_date', v)}
+                    >
+                      <span>{formatDate(r.next_action_date)}</span>
+                    </EditableCell>
                     <Td>
                       <Badge className={BU_COLOURS[r.business_unit] || 'bg-gray-100 text-gray-600'}>
                         {r.business_unit}

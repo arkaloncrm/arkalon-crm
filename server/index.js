@@ -20,6 +20,7 @@ const reportsRouter = require('./routes/reports');
 const aiIngestRouter = require('./routes/aiIngest');
 const notesRouter = require('./routes/notes');
 const settingsRouter = require('./routes/settings');
+const validationRouter = require('./routes/validation');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -43,6 +44,7 @@ app.use('/api/tasks', authMiddleware, tasksRouter);
 app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/notes', authMiddleware, notesRouter);
 app.use('/api/settings', authMiddleware, settingsRouter);
+app.use('/api/validation', authMiddleware, validationRouter);
 
 // Serve the built React client in production (Railway single-service deploy)
 if (process.env.NODE_ENV === 'production') {

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
+import DuplicateWarning from '../../components/UI/DuplicateWarning.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useDuplicateCheck } from '../../hooks/useDuplicateCheck.js';
 import { BUSINESS_UNITS } from '../../utils/constants.js';
 
 const SALUTATIONS = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
@@ -45,6 +47,17 @@ export default function ContactForm() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [accounts, setAccounts] = useState([]);
+
+  const { matches: duplicates, check: checkDuplicates, clear: clearDuplicates } = useDuplicateCheck(
+    'contact',
+    () => ({
+      email: form.email,
+      phone: form.phone,
+      mobile: form.mobile,
+      linkedin_url: form.linkedin_url,
+    }),
+    isEdit ? Number(id) : 0,
+  );
 
   useEffect(() => {
     accountsApi.getAll().then(res => setAccounts(res.data.data || [])).catch(() => {});
@@ -116,6 +129,8 @@ export default function ContactForm() {
         </h2>
       </div>
 
+      <DuplicateWarning matches={duplicates} entityType="contact" onDismiss={clearDuplicates} />
+
       <div className="pb-4">
         <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <div className="px-5 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
@@ -150,16 +165,16 @@ export default function ContactForm() {
               </select>
             </Field>
             <Field label="Email">
-              <input type="email" className={inputCls()} value={form.email} onChange={set('email')} />
+              <input type="email" className={inputCls()} value={form.email} onChange={set('email')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Phone">
-              <input type="text" className={inputCls()} value={form.phone} onChange={set('phone')} />
+              <input type="text" className={inputCls()} value={form.phone} onChange={set('phone')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Mobile">
-              <input type="text" className={inputCls()} value={form.mobile} onChange={set('mobile')} />
+              <input type="text" className={inputCls()} value={form.mobile} onChange={set('mobile')} onBlur={checkDuplicates} />
             </Field>
             <Field label="LinkedIn URL">
-              <input type="text" className={inputCls()} value={form.linkedin_url} onChange={set('linkedin_url')} />
+              <input type="text" className={inputCls()} value={form.linkedin_url} onChange={set('linkedin_url')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Department">
               <input type="text" className={inputCls()} value={form.department} onChange={set('department')} />

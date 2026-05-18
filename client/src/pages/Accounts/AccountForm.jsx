@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
+import DuplicateWarning from '../../components/UI/DuplicateWarning.jsx';
 import { accountsApi } from '../../api/accounts.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useDuplicateCheck } from '../../hooks/useDuplicateCheck.js';
 import { BUSINESS_UNITS, INDUSTRIES } from '../../utils/constants.js';
 
 function Field({ label, required, error, children }) {
@@ -40,6 +42,12 @@ export default function AccountForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+
+  const { matches: duplicates, check: checkDuplicates, clear: clearDuplicates } = useDuplicateCheck(
+    'account',
+    () => ({ company_name: form.name, website: form.website, phone: form.phone }),
+    isEdit ? Number(id) : 0,
+  );
 
   useEffect(() => {
     if (!isEdit) return;
@@ -112,6 +120,8 @@ export default function AccountForm() {
         </h2>
       </div>
 
+      <DuplicateWarning matches={duplicates} entityType="account" onDismiss={clearDuplicates} />
+
       <div className="space-y-4 pb-4">
         <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <div className="px-5 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
@@ -119,7 +129,7 @@ export default function AccountForm() {
           </div>
           <div className="p-5 grid grid-cols-2 gap-4">
             <Field label="Account Name" required error={errors.name}>
-              <input type="text" className={inputCls(errors.name)} value={form.name} onChange={set('name')} />
+              <input type="text" className={inputCls(errors.name)} value={form.name} onChange={set('name')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Business Unit" required error={errors.business_unit}>
               <select className={selectCls(errors.business_unit)} value={form.business_unit} onChange={set('business_unit')}>
@@ -128,10 +138,10 @@ export default function AccountForm() {
               </select>
             </Field>
             <Field label="Website">
-              <input type="text" className={inputCls()} value={form.website} onChange={set('website')} placeholder="https://" />
+              <input type="text" className={inputCls()} value={form.website} onChange={set('website')} onBlur={checkDuplicates} placeholder="https://" />
             </Field>
             <Field label="Phone">
-              <input type="text" className={inputCls()} value={form.phone} onChange={set('phone')} />
+              <input type="text" className={inputCls()} value={form.phone} onChange={set('phone')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Industry">
               <select className={selectCls()} value={form.industry} onChange={set('industry')}>

@@ -289,6 +289,7 @@ router.get('/:id', async (req, res) => {
         deals.total_contract_earnings,
         deals.weighted_value,
         deals.description,
+        deals.executive_summary,
         deals.next_action,
         deals.next_action_date,
         deals.deal_owner_id,
@@ -701,6 +702,178 @@ router.patch('/:id/stage', async (req, res) => {
       WHERE id = ?
     `), [stage, stageInfo.probability, stageInfo.forecast_category, weighted_value, id]);
 
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/deals/:id — partial update of non-financial fields only.
+// Financial fields are intentionally excluded; they are derived from line
+// items and must go through POST/PUT, which recalculate them.
+const DEAL_PATCH_FIELDS = ['stage', 'close_date', 'next_action', 'next_action_date', 'executive_summary'];
+
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existingResult = await pool.query(
+      P('SELECT id, gross_total_value FROM deals WHERE id = ?'),
+      [id]
+    );
+    const existing = existingResult.rows[0];
+    if (!existing) return res.status(404).json({ success: false, error: 'Deal not found' });
+
+    const setParts = [];
+    const params = [];
+    // DATE columns reject '' in PostgreSQL — coerce blanks to NULL.
+    const NON_TEXT = new Set(['close_date', 'next_action_date']);
+
+    for (const field of DEAL_PATCH_FIELDS) {
+      if (req.body[field] === undefined) continue;
+      let value = req.body[field];
+      if (NON_TEXT.has(field) && value === '') value = null;
+      setParts.push(`${field} = ?`);
+      params.push(value);
+    }
+
+    if (setParts.length === 0) {
+      return res.status(400).json({ success: false, error: 'No updatable fields provided' });
+    }
+
+    // Stage drives probability / forecast / weighted value — keep them in sync,
+    // matching the behaviour of PATCH /:id/stage.
+    if (req.body.stage !== undefined) {
+      const stageInfo = STAGE_MAP[req.body.stage];
+      if (!stageInfo) return res.status(400).json({ success: false, error: 'Invalid stage' });
+      const weighted_value =
+        Math.round((existing.gross_total_value || 0) * stageInfo.probability / 100 * 100) / 100;
+      setParts.push('probability = ?', 'forecast_category = ?', 'weighted_value = ?');
+      params.push(stageInfo.probability, stageInfo.forecast_category, weighted_value);
+    }
+
+    params.push(id);
+    await pool.query(
+      P(`UPDATE deals SET ${setParts.join(', ')}, updated_at = NOW() WHERE id = ?`),
+      params
+    );
+
+    const { rows } = await pool.query(P(`
+      SELECT deals.*, accounts.name AS account_name
+      FROM deals
+      LEFT JOIN accounts ON deals.account_id = accounts.id
+      WHERE deals.id = ?
+    `), [id]);
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Roles accepted by the deal_contacts.role CHECK constraint already in the schema.
+const DEAL_CONTACT_ROLES = ['Primary', 'Operations', 'Billing', 'Technical', 'Executive', 'Other'];
+
+// GET /api/deals/:id/contacts
+router.get('/:id/contacts', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dealResult = await pool.query(P('SELECT id FROM deals WHERE id = ?'), [id]);
+    if (dealResult.rows.length === 0) return res.status(404).json({ success: false, error: 'Deal not found' });
+
+    const { rows } = await pool.query(P(`
+      SELECT
+        deal_contacts.contact_id,
+        contacts.first_name,
+        contacts.last_name,
+        contacts.email,
+        contacts.phone,
+        accounts.name AS account_name,
+        deal_contacts.role
+      FROM deal_contacts
+      JOIN contacts ON deal_contacts.contact_id = contacts.id
+      LEFT JOIN accounts ON contacts.account_id = accounts.id
+      WHERE deal_contacts.deal_id = ?
+      ORDER BY deal_contacts.id ASC
+    `), [id]);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/deals/:id/contacts — link a contact to a deal with a role
+router.post('/:id/contacts', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contact_id, role } = req.body;
+
+    if (!contact_id) return res.status(400).json({ success: false, error: 'contact_id is required' });
+    if (!DEAL_CONTACT_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Invalid contact role' });
+    }
+
+    const dealResult = await pool.query(P('SELECT id, account_id FROM deals WHERE id = ?'), [id]);
+    const deal = dealResult.rows[0];
+    if (!deal) return res.status(404).json({ success: false, error: 'Deal not found' });
+
+    const contactResult = await pool.query(P('SELECT id, account_id FROM contacts WHERE id = ?'), [contact_id]);
+    const contact = contactResult.rows[0];
+    if (!contact) return res.status(404).json({ success: false, error: 'Contact not found' });
+
+    if (deal.account_id && contact.account_id !== deal.account_id) {
+      return res.status(400).json({ success: false, error: "Contact does not belong to the deal's account" });
+    }
+
+    const linked = await pool.query(
+      P('SELECT id FROM deal_contacts WHERE deal_id = ? AND contact_id = ?'),
+      [id, contact_id]
+    );
+    if (linked.rows.length > 0) {
+      return res.status(400).json({ success: false, error: 'Contact is already linked to this deal' });
+    }
+
+    await pool.query(
+      P('INSERT INTO deal_contacts (deal_id, contact_id, role) VALUES (?, ?, ?)'),
+      [id, contact_id, role]
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/deals/:id/contacts/:contactId — update a linked contact's role
+router.patch('/:id/contacts/:contactId', async (req, res) => {
+  try {
+    const { id, contactId } = req.params;
+    const { role } = req.body;
+    if (!DEAL_CONTACT_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Invalid contact role' });
+    }
+
+    const result = await pool.query(
+      P('UPDATE deal_contacts SET role = ? WHERE deal_id = ? AND contact_id = ?'),
+      [role, id, contactId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Contact is not linked to this deal' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/deals/:id/contacts/:contactId — remove a contact from a deal
+router.delete('/:id/contacts/:contactId', async (req, res) => {
+  try {
+    const { id, contactId } = req.params;
+    const result = await pool.query(
+      P('DELETE FROM deal_contacts WHERE deal_id = ? AND contact_id = ?'),
+      [id, contactId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Contact is not linked to this deal' });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
+import DuplicateWarning from '../../components/UI/DuplicateWarning.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useDuplicateCheck } from '../../hooks/useDuplicateCheck.js';
 import {
   BUSINESS_UNITS, LEAD_STATUSES, LEAD_SOURCES,
   INDUSTRIES, TARGET_TYPES, PRIORITY_COLOURS,
@@ -46,6 +48,18 @@ export default function LeadForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+
+  const { matches: duplicates, check: checkDuplicates, clear: clearDuplicates } = useDuplicateCheck(
+    'lead',
+    () => ({
+      company_name: form.company,
+      email: form.email,
+      phone: form.phone,
+      mobile: form.mobile,
+      website: form.website,
+    }),
+    isEdit ? Number(id) : 0,
+  );
 
   useEffect(() => {
     if (!isEdit) return;
@@ -136,6 +150,8 @@ export default function LeadForm() {
         </h2>
       </div>
 
+      <DuplicateWarning matches={duplicates} entityType="lead" onDismiss={clearDuplicates} />
+
       <div className="space-y-4 pb-4">
         {/* Section 1 — Lead Information */}
         <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
@@ -159,19 +175,19 @@ export default function LeadForm() {
               <input type="text" className={inputCls()} value={form.title} onChange={set('title')} />
             </Field>
             <Field label="Company" required error={errors.company}>
-              <input type="text" className={inputCls(errors.company)} value={form.company} onChange={set('company')} />
+              <input type="text" className={inputCls(errors.company)} value={form.company} onChange={set('company')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Email">
-              <input type="email" className={inputCls()} value={form.email} onChange={set('email')} />
+              <input type="email" className={inputCls()} value={form.email} onChange={set('email')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Phone">
-              <input type="text" className={inputCls()} value={form.phone} onChange={set('phone')} />
+              <input type="text" className={inputCls()} value={form.phone} onChange={set('phone')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Mobile">
-              <input type="text" className={inputCls()} value={form.mobile} onChange={set('mobile')} />
+              <input type="text" className={inputCls()} value={form.mobile} onChange={set('mobile')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Website">
-              <input type="text" className={inputCls()} value={form.website} onChange={set('website')} />
+              <input type="text" className={inputCls()} value={form.website} onChange={set('website')} onBlur={checkDuplicates} />
             </Field>
             <Field label="Lead Source">
               <select className={selectCls()} value={form.lead_source} onChange={set('lead_source')}>

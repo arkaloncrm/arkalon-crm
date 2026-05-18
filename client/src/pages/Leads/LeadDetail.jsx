@@ -5,6 +5,8 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import Modal from '../../components/UI/Modal.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
+import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { accountsApi } from '../../api/accounts.js';
 import { notesApi } from '../../api/notes.js';
@@ -279,6 +281,7 @@ export default function LeadDetail() {
   const [showConvert, setShowConvert] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [call, setCall] = useState(null);
 
   const fetchLead = () => {
     setLoading(true);
@@ -318,6 +321,14 @@ export default function LeadDetail() {
 
   const fullName = [lead.salutation, lead.first_name, lead.last_name].filter(Boolean).join(' ');
 
+  const handleCall = (phone) => setCall({
+    phone,
+    name: fullName || lead.company,
+    businessUnit: lead.business_unit,
+    link: { lead_id: Number(id) },
+    timestamp: new Date().toISOString(),
+  });
+
   return (
     <div>
       {/* Page header */}
@@ -349,13 +360,13 @@ export default function LeadDetail() {
         {lead.phone && (
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Phone</span>
-            <span className="text-sm font-opensans text-slate-700">{lead.phone}</span>
+            <PhoneLink phone={lead.phone} onCall={handleCall} className="text-sm font-opensans" />
           </div>
         )}
         {lead.email && (
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans">Email</span>
-            <a href={`mailto:${lead.email}`} className="text-sm font-opensans text-arkalon-blue hover:underline">{lead.email}</a>
+            <EmailLink email={lead.email} refName={lead.company} className="text-sm font-opensans" />
           </div>
         )}
         <div className="flex flex-col">
@@ -383,6 +394,12 @@ export default function LeadDetail() {
         )}
       </div>
 
+      <ExecutiveSummary
+        value={lead.executive_summary}
+        entityName="lead"
+        onSave={(v) => leadsApi.update(id, { executive_summary: v })}
+      />
+
       {/* Two-column layout */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <SectionCard title="Lead Information">
@@ -391,9 +408,9 @@ export default function LeadDetail() {
           <FieldRow label="Last Name" value={lead.last_name} />
           <FieldRow label="Title" value={lead.title} />
           <FieldRow label="Company" value={lead.company} />
-          <FieldRow label="Email" value={lead.email} />
-          <FieldRow label="Phone" value={lead.phone} />
-          <FieldRow label="Mobile" value={lead.mobile} />
+          <FieldRow label="Email" value={<EmailLink email={lead.email} refName={lead.company} />} />
+          <FieldRow label="Phone" value={<PhoneLink phone={lead.phone} onCall={handleCall} />} />
+          <FieldRow label="Mobile" value={<PhoneLink phone={lead.mobile} onCall={handleCall} />} />
           <FieldRow label="Website" value={lead.website} />
           <FieldRow label="Lead Source" value={lead.lead_source} />
           <FieldRow label="Lead Status" value={lead.lead_status} />
@@ -461,6 +478,8 @@ export default function LeadDetail() {
         message={`Delete "${lead.company}"? This action cannot be undone.`}
         loading={deleteLoading}
       />
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
     </div>
   );
 }

@@ -4,6 +4,9 @@ import { Pencil, Trash2, Phone, Mail } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
+import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import DealContactRoles from './DealContactRoles.jsx';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
 import TasksRelatedTab from '../../components/Tasks/TasksRelatedTab.jsx';
 import { dealsApi } from '../../api/deals.js';
@@ -172,6 +175,7 @@ export default function DealDetail() {
   const [deleting, setDeleting] = useState(false);
   const [stageChanging, setStageChanging] = useState(false);
   const [selectedStage, setSelectedStage] = useState('');
+  const [call, setCall] = useState(null);
 
   const loadDeal = () => {
     setLoading(true);
@@ -222,6 +226,14 @@ export default function DealDetail() {
 
   const isASC = deal.business_unit === 'ASC';
 
+  const handleCall = (phone, contactName) => setCall({
+    phone,
+    name: contactName,
+    businessUnit: deal.business_unit,
+    link: { deal_id: Number(id) },
+    timestamp: new Date().toISOString(),
+  });
+
   return (
     <div>
       {/* Header */}
@@ -271,6 +283,12 @@ export default function DealDetail() {
 
       <div className="flex gap-5 items-start">
         <div className="flex-1 min-w-0">
+
+          <ExecutiveSummary
+            value={deal.executive_summary}
+            entityName="deal"
+            onSave={(v) => dealsApi.patch(id, { executive_summary: v })}
+          />
 
           {/* Financial Summary — HERO CARD */}
           <div className="bg-white border-2 border-arkalon-blue rounded-lg overflow-hidden mb-4">
@@ -376,6 +394,9 @@ export default function DealDetail() {
             <FieldRow label="Updated" value={formatDateTime(deal.updated_at)} />
           </SectionCard>
 
+          {/* Contact Roles */}
+          <DealContactRoles dealId={id} accountId={deal.account_id} />
+
           {/* Tabs */}
           <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
             <div className="flex border-b border-arkalon-lightgrey">
@@ -438,13 +459,24 @@ export default function DealDetail() {
                       {contact.phone && (
                         <div className="flex items-center gap-1.5 mt-1">
                           <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                          <span className="text-xs text-slate-500 font-opensans">{contact.phone}</span>
+                          <PhoneLink
+                            phone={contact.phone}
+                            onCall={() => handleCall(
+                              contact.phone,
+                              contact.full_name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+                            )}
+                            className="text-xs font-opensans"
+                          />
                         </div>
                       )}
                       {contact.email && (
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <Mail className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                          <span className="text-xs text-slate-500 font-opensans truncate">{contact.email}</span>
+                          <EmailLink
+                            email={contact.email}
+                            refName={deal.account_name}
+                            className="text-xs font-opensans truncate"
+                          />
                         </div>
                       )}
                     </div>
@@ -489,6 +521,8 @@ export default function DealDetail() {
         onConfirm={handleDelete}
         onCancel={() => setDeleting(false)}
       />
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
     </div>
   );
 }
