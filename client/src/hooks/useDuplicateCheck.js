@@ -16,8 +16,6 @@ export function useDuplicateCheck(entityType, buildPayload, excludeId) {
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const check = useCallback(() => {
-    // TEMP DIAGNOSTIC — remove once the duplicate-warning bug is confirmed fixed.
-    console.log('[dup-check] check() fired on blur — scheduling lookup');
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const requestBody = {
@@ -25,13 +23,10 @@ export function useDuplicateCheck(entityType, buildPayload, excludeId) {
         exclude_id: excludeId || undefined,
         ...payloadRef.current(),
       };
-      console.log('[dup-check] sending request', requestBody);
       try {
         const res = await validationApi.checkDuplicate(requestBody);
-        console.log('[dup-check] API response', res.data);
         setMatches(res.data.data || []);
-      } catch (err) {
-        console.error('[dup-check] request failed', err);
+      } catch {
         setMatches([]);
       }
     }, 500);

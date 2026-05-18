@@ -38,6 +38,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showResetMsg, setShowResetMsg] = useState(false);
 
   if (user) return <Navigate to="/dashboard" replace />;
 
@@ -128,6 +129,22 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          {/* Password reset — no email flow; directs the user to the administrator */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setShowResetMsg(true)}
+              className="text-sm text-arkalon-blue hover:underline font-opensans"
+            >
+              Forgot password?
+            </button>
+            {showResetMsg && (
+              <p className="mt-2 text-xs text-arkalon-grey font-opensans">
+                To reset your password, please contact your CRM administrator.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="px-8 py-3 border-t border-arkalon-lightgrey text-center">

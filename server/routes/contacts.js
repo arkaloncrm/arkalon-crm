@@ -124,6 +124,35 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/contacts/:id — partial update for inline edits. Strictly limited
+// to contact-detail fields; no other column may be patched via this endpoint.
+const CONTACT_PATCH_FIELDS = ['phone', 'mobile', 'email'];
+
+router.patch('/:id', async (req, res) => {
+  try {
+    const existing = await pool.query(P('SELECT id FROM contacts WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Contact not found' });
+
+    const updates = CONTACT_PATCH_FIELDS.filter(f => req.body[f] !== undefined);
+    if (updates.length === 0) return res.status(400).json({ success: false, error: 'No updatable fields provided' });
+
+    const setClause = updates.map(f => `${f} = ?`).join(', ');
+    await pool.query(
+      P(`UPDATE contacts SET ${setClause}, updated_at = NOW() WHERE id = ?`),
+      [...updates.map(f => req.body[f]), req.params.id]
+    );
+
+    const { rows } = await pool.query(P(`
+      SELECT c.*, a.name as account_name
+      FROM contacts c LEFT JOIN accounts a ON c.account_id = a.id
+      WHERE c.id = ?
+    `), [req.params.id]);
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // DELETE /api/contacts/:id
 router.delete('/:id', async (req, res) => {
   try {

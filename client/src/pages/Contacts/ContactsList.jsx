@@ -8,6 +8,7 @@ import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
+import api from '../../api/axios.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { BUSINESS_UNITS } from '../../utils/constants.js';
 import { formatDate } from '../../utils/formatDate.js';
@@ -18,6 +19,61 @@ const BU_COLOURS = {
 };
 
 const PAGE_SIZE = 25;
+
+// Inline-editable table cell. Shows a faint pencil on row hover; double-click
+// swaps in a text input. Commits on blur, reverts on Escape. `onCommit` handles
+// its own errors and never rejects.
+function EditableCell({ value, type = 'text', onCommit }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = (e) => {
+    e.stopPropagation();
+    setDraft(value ?? '');
+    setEditing(true);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim() === '' ? null : draft.trim();
+    if (next === (value ?? null)) return;
+    onCommit(next);
+  };
+
+  const cancel = () => {
+    setDraft(value ?? '');
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <td className="px-3">
+        <input
+          autoFocus
+          type={type}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
+          className="w-full px-2 py-1 text-sm border border-arkalon-blue rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+        />
+      </td>
+    );
+  }
+
+  return (
+    <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">
+      <div
+        onDoubleClick={startEdit}
+        title="Double-click to edit"
+        className="flex items-center gap-1.5 cursor-text min-h-[1.5rem]"
+      >
+        <span>{value || '—'}</span>
+        <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+      </div>
+    </td>
+  );
+}
 
 export default function ContactsList() {
   const navigate = useNavigate();
@@ -85,6 +141,20 @@ export default function ContactsList() {
     if (failed === 0) addToast(`${deleted} record(s) deleted`, 'success');
     else if (deleted === 0) addToast(`Could not delete ${failed} record(s)`, 'error');
     else addToast(`${deleted} deleted · ${failed} could not be deleted`, 'error');
+  };
+
+  const handleInlineEdit = async (contact, field, value) => {
+    const snapshot = contacts;
+    // Optimistic update — reverted if the request fails.
+    setContacts(cs => cs.map(c => (c.id === contact.id ? { ...c, [field]: value } : c)));
+    try {
+      const res = await api.patch(`/contacts/${contact.id}`, { [field]: value });
+      setContacts(cs => cs.map(c => (c.id === contact.id ? { ...c, ...res.data.data } : c)));
+      addToast('Contact updated', 'success');
+    } catch (err) {
+      setContacts(snapshot);
+      addToast(err.response?.data?.error || 'Failed to update contact', 'error');
+    }
   };
 
   const filtersActive = buFilter || accountFilter || search;
@@ -197,14 +267,14 @@ export default function ContactsList() {
                     onChange={(e) => setSelectedIds(e.target.checked ? contacts.map(r => r.id) : [])}
                   />
                 </th>
-                {['Name', 'Account', 'Business Unit', 'Title', 'Email', 'Phone', 'Created', 'Actions'].map(col => (
+                {['Name', 'Account', 'Business Unit', 'Title', 'Email', 'Phone', 'Mobile', 'Created', 'Actions'].map(col => (
                   <th key={col} className="px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {paginated.map((contact, idx) => (
-                <tr key={contact.id} className={`border-b border-arkalon-lightgrey h-11 hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}>
+                <tr key={contact.id} className={`group border-b border-arkalon-lightgrey h-11 hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}>
                   <td className="px-3">
                     <input
                       type="checkbox"
@@ -231,8 +301,9 @@ export default function ContactsList() {
                     {contact.business_unit && <Badge className={BU_COLOURS[contact.business_unit] || 'bg-gray-100 text-gray-600'}>{contact.business_unit}</Badge>}
                   </td>
                   <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{contact.title || '—'}</td>
-                  <td className="px-3 text-slate-600 font-opensans">{contact.email || '—'}</td>
-                  <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{contact.phone || '—'}</td>
+                  <EditableCell value={contact.email} type="email" onCommit={v => handleInlineEdit(contact, 'email', v)} />
+                  <EditableCell value={contact.phone} type="text" onCommit={v => handleInlineEdit(contact, 'phone', v)} />
+                  <EditableCell value={contact.mobile} type="text" onCommit={v => handleInlineEdit(contact, 'mobile', v)} />
                   <td className="px-3 text-slate-500 font-opensans whitespace-nowrap">{formatDate(contact.created_at)}</td>
                   <td className="px-3">
                     <div className="flex items-center gap-1.5">
