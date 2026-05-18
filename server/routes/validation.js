@@ -50,8 +50,19 @@ router.post('/check-duplicate', async (req, res) => {
 
     const excludeId = Number.isInteger(Number(exclude_id)) ? Number(exclude_id) : 0;
 
+    // The company/name column is matched as a case-insensitive substring so
+    // near-duplicates ("Westpac" vs "Westpac Banking Corp") are caught. Other
+    // fields use a case-insensitive exact match. Both the column and the input
+    // are TRIMmed: imported records often carry stray surrounding whitespace,
+    // and trimming only the input (not the column) caused matches to be missed.
+    const nameColumn = config.fields.company_name;
     // $1 = exclude_id, $2.. = each checked value.
-    const conditions = checks.map((c, i) => `${c.column} ILIKE TRIM($${i + 2})`);
+    const conditions = checks.map((c, i) => {
+      const param = `TRIM($${i + 2})`;
+      return c.column === nameColumn
+        ? `TRIM(${c.column}) ILIKE ('%' || ${param} || '%')`
+        : `TRIM(${c.column}) ILIKE ${param}`;
+    });
     const matchCols = [...new Set(checks.map(c => c.column))];
     const sql = `
       SELECT id, ${config.displayCol} AS display_name, ${matchCols.join(', ')}
@@ -62,11 +73,16 @@ router.post('/check-duplicate', async (req, res) => {
     const params = [excludeId, ...checks.map(c => c.value)];
     const { rows } = await pool.query(sql, params);
 
-    // Work out which field(s) actually matched for each candidate record.
+    // Work out which field(s) matched — substring for the name column, exact
+    // for the rest — mirroring the SQL conditions above.
     const data = rows.map(row => {
       const matchedFields = checks
-        .filter(c => row[c.column] != null
-          && String(row[c.column]).trim().toLowerCase() === c.value.toLowerCase())
+        .filter(c => {
+          if (row[c.column] == null) return false;
+          const stored = String(row[c.column]).trim().toLowerCase();
+          const typed = c.value.toLowerCase();
+          return c.column === nameColumn ? stored.includes(typed) : stored === typed;
+        })
         .map(c => FIELD_LABELS[c.column] || c.column);
       return {
         id: row.id,
