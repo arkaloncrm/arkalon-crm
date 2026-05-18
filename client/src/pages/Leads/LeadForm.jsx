@@ -121,6 +121,9 @@ export default function LeadForm() {
         ...form,
         employee_count: form.employee_count !== '' ? Number(form.employee_count) : null,
         annual_revenue: form.annual_revenue !== '' ? Number(form.annual_revenue) : null,
+        // The blank "—" priority option yields '', which violates the
+        // leads_priority_check constraint; send NULL (permitted) instead.
+        priority: form.priority || null,
       };
       const res = isEdit
         ? await leadsApi.update(id, payload)
