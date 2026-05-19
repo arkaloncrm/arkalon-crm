@@ -148,6 +148,26 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/accounts/:id/priority — toggle the priority_flag boolean
+router.patch('/:id/priority', async (req, res) => {
+  try {
+    const existing = await pool.query(P('SELECT priority_flag FROM accounts WHERE id = ?'), [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Account not found' });
+
+    // Treat a null priority_flag as false so toggling always lands on a boolean.
+    const next = existing.rows[0].priority_flag !== true;
+    await pool.query(
+      P('UPDATE accounts SET priority_flag = ?, updated_at = NOW() WHERE id = ?'),
+      [next, req.params.id]
+    );
+
+    const { rows } = await pool.query(P('SELECT * FROM accounts WHERE id = ?'), [req.params.id]);
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // DELETE /api/accounts/:id
 router.delete('/:id', async (req, res) => {
   try {

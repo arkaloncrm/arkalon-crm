@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, ExternalLink, Plus, X, Calendar } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, ExternalLink, Plus, X, Calendar, Star } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
@@ -125,6 +125,18 @@ export default function AccountDetail() {
     }
   };
 
+  // Optimistic toggle — flip priority_flag immediately, roll back if the API fails.
+  const handleTogglePriority = async () => {
+    const previous = account.priority_flag === true;
+    setAccount(prev => ({ ...prev, priority_flag: !previous }));
+    try {
+      await accountsApi.togglePriority(id);
+    } catch (err) {
+      setAccount(prev => ({ ...prev, priority_flag: previous }));
+      addToast('Failed to update priority', 'error');
+    }
+  };
+
   if (loading) return <div className="space-y-3"><div className="h-10 bg-slate-100 rounded animate-pulse w-1/3" /><div className="h-64 bg-slate-100 rounded animate-pulse" /></div>;
   if (!account) return <div className="text-slate-500 font-opensans text-sm">Account not found.</div>;
 
@@ -147,6 +159,16 @@ export default function AccountDetail() {
           {account.industry && <p className="text-slate-500 font-opensans text-sm mt-0.5">{account.industry}</p>}
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleTogglePriority}
+            aria-pressed={account.priority_flag === true}
+            aria-label={account.priority_flag === true ? 'Remove priority from account' : 'Mark account as priority'}
+          >
+            <Star className="w-3.5 h-3.5" style={account.priority_flag === true ? { fill: '#f59e0b', stroke: '#f59e0b' } : undefined} />
+            Priority
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => setShowBrief(true)}>
             <Calendar className="w-3.5 h-3.5" /> Pre-Meeting Brief
           </Button>

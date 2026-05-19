@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, ExternalLink, Star } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
@@ -18,6 +18,22 @@ const BU_COLOURS = {
 
 const PAGE_SIZE = 25;
 
+// 44px-square star toggle. `active` renders a filled gold star, otherwise an
+// outline. stopPropagation keeps a tap from triggering row/card navigation.
+function PriorityStar({ active, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      aria-label={active ? 'Remove priority from account' : 'Mark account as priority'}
+      title={active ? 'Remove priority' : 'Mark as priority'}
+      className="flex items-center justify-center h-11 w-11 rounded transition-colors text-slate-300 hover:bg-slate-50 hover:text-amber-500"
+    >
+      <Star className="w-4 h-4" style={active ? { fill: '#f59e0b', stroke: '#f59e0b' } : undefined} />
+    </button>
+  );
+}
+
 export default function AccountsList() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -28,6 +44,7 @@ export default function AccountsList() {
   const [search, setSearch] = useState('');
   const [buFilter, setBuFilter] = useState('');
   const [industryFilter, setIndustryFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState(false);
   const [page, setPage] = useState(1);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -81,18 +98,37 @@ export default function AccountsList() {
     else addToast(`${deleted} deleted · ${failed} could not be deleted`, 'error');
   };
 
+  // Optimistic toggle — flip priority_flag immediately, roll back if the API fails.
+  const handleTogglePriority = async (account) => {
+    const previous = account.priority_flag === true;
+    setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, priority_flag: !previous } : a));
+    try {
+      await accountsApi.togglePriority(account.id);
+    } catch (err) {
+      setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, priority_flag: previous } : a));
+      addToast('Failed to update priority', 'error');
+    }
+  };
+
+  const handleTogglePriorityFilter = () => {
+    setPriorityFilter(p => !p);
+    setPage(1);
+  };
+
   const filtersActive = buFilter || industryFilter || search;
-  const totalPages = Math.ceil(accounts.length / PAGE_SIZE);
-  const paginated = accounts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const start = accounts.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const end = Math.min(page * PAGE_SIZE, accounts.length);
+  // Priority is a frontend-only filter applied on top of the backend-filtered set.
+  const visibleAccounts = priorityFilter ? accounts.filter(a => a.priority_flag === true) : accounts;
+  const totalPages = Math.ceil(visibleAccounts.length / PAGE_SIZE);
+  const paginated = visibleAccounts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const start = visibleAccounts.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, visibleAccounts.length);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Accounts</h2>
-          <span className="bg-slate-100 text-slate-500 text-xs font-montserrat font-semibold px-2 py-0.5 rounded-full">{accounts.length}</span>
+          <span className="bg-slate-100 text-slate-500 text-xs font-montserrat font-semibold px-2 py-0.5 rounded-full">{visibleAccounts.length}</span>
         </div>
         <Button onClick={() => navigate('/accounts/new')}>+ New Account</Button>
       </div>
@@ -121,6 +157,19 @@ export default function AccountsList() {
           <option value="">All Industries</option>
           {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
         </select>
+        <button
+          type="button"
+          onClick={handleTogglePriorityFilter}
+          aria-pressed={priorityFilter}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded border font-opensans transition-colors ${
+            priorityFilter
+              ? 'bg-amber-50 border-amber-300 text-amber-700'
+              : 'bg-white border-arkalon-lightgrey text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Star className="w-3.5 h-3.5" style={priorityFilter ? { fill: '#f59e0b', stroke: '#f59e0b' } : undefined} />
+          Priority
+        </button>
         {filtersActive && (
           <button onClick={() => { setSearch(''); setBuFilter(''); setIndustryFilter(''); }} className="text-xs text-arkalon-blue hover:underline font-opensans">
             Clear filters
@@ -142,6 +191,10 @@ export default function AccountsList() {
       ) : accounts.length === 0 ? (
         <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
           <EmptyState title="No accounts yet" description="Create accounts to group your contacts and deals." action={() => navigate('/accounts/new')} actionLabel="Create your first account" />
+        </div>
+      ) : visibleAccounts.length === 0 ? (
+        <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 text-center text-sm text-slate-400 font-opensans">
+          No priority accounts match the current filters.
         </div>
       ) : (
         <>
@@ -168,6 +221,7 @@ export default function AccountsList() {
                       : 'No open deals'}
                   </span>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    <PriorityStar active={account.priority_flag === true} onToggle={() => handleTogglePriority(account)} />
                     <CardAction label="Edit" onClick={() => navigate(`/accounts/${account.id}/edit`)}>
                       <Pencil className="w-4 h-4" />
                     </CardAction>
@@ -189,10 +243,11 @@ export default function AccountsList() {
                   <input
                     type="checkbox"
                     className="rounded"
-                    checked={selectedIds.length === accounts.length && accounts.length > 0}
-                    onChange={(e) => setSelectedIds(e.target.checked ? accounts.map(r => r.id) : [])}
+                    checked={selectedIds.length === visibleAccounts.length && visibleAccounts.length > 0}
+                    onChange={(e) => setSelectedIds(e.target.checked ? visibleAccounts.map(r => r.id) : [])}
                   />
                 </th>
+                <th className="px-2 py-2.5 w-11"><span className="sr-only">Priority</span></th>
                 {['Account Name', 'Business Unit', 'Industry', 'Phone', 'Website', 'Employees', 'Open Deals', 'Created', 'Actions'].map(col => (
                   <th key={col} className="px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
                 ))}
@@ -210,6 +265,9 @@ export default function AccountsList() {
                         e.target.checked ? [...prev, account.id] : prev.filter(id => id !== account.id)
                       )}
                     />
+                  </td>
+                  <td className="px-2">
+                    <PriorityStar active={account.priority_flag === true} onToggle={() => handleTogglePriority(account)} />
                   </td>
                   <td className="px-3 whitespace-nowrap">
                     <button onClick={() => navigate(`/accounts/${account.id}`)} className="font-semibold text-arkalon-blue hover:underline font-opensans text-sm">
@@ -256,9 +314,9 @@ export default function AccountsList() {
         </>
       )}
 
-      {accounts.length > PAGE_SIZE && (
+      {visibleAccounts.length > PAGE_SIZE && (
         <div className="flex items-center justify-between mt-3 px-1">
-          <span className="text-xs text-slate-500 font-opensans">Showing {start}–{end} of {accounts.length}</span>
+          <span className="text-xs text-slate-500 font-opensans">Showing {start}–{end} of {visibleAccounts.length}</span>
           <div className="flex items-center gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs font-opensans border border-arkalon-lightgrey rounded bg-white hover:bg-slate-50 disabled:opacity-40">Prev</button>
             <span className="text-xs text-slate-600 font-opensans">{page} / {totalPages}</span>

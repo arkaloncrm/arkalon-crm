@@ -5,6 +5,7 @@ const path = require('path');
 const { initDb } = require('./database');
 const { runMigration: migration004 } = require('./database/migrations/004_deals_columns');
 const { runMigration: migration006 } = require('./database/migrations/006_products_columns');
+const { runMigration: migration007 } = require('./database/migrations/007_accounts_priority_flag');
 const authRouter = require('./auth/authRouter');
 const { authMiddleware } = require('./auth/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
@@ -67,6 +68,7 @@ async function start() {
   await initDb();
   await migration004();
   await migration006();
+  await migration007();
 
   app.listen(PORT, () => {
     console.log('');

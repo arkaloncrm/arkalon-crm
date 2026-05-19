@@ -5,5 +5,6 @@ export const accountsApi = {
   getById: (id) => api.get(`/accounts/${id}`),
   create: (data) => api.post('/accounts', data),
   update: (id, data) => api.put(`/accounts/${id}`, data),
+  togglePriority: (id) => api.patch(`/accounts/${id}/priority`),
   delete: (id) => api.delete(`/accounts/${id}`),
 };

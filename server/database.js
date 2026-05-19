@@ -62,6 +62,7 @@ const SCHEMA = `
     description TEXT,
     business_unit TEXT CHECK(business_unit IN ('ASC', 'Simply Seated', 'Both')),
     account_owner_id INTEGER REFERENCES users(id),
+    priority_flag BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
   );
