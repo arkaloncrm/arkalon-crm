@@ -2,6 +2,9 @@
   "name": "arkalon-crm",
   "version": "1.0.0",
   "description": "Arkalon CRM — ASC Technologies & Simply Seated",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "postinstall": "npm install --prefix server && npm install --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
