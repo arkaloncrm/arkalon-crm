@@ -141,9 +141,9 @@ export default function Dashboard() {
             { label: 'This Quarter', value: commission.quarter },
             { label: 'This Year', value: commission.year },
           ].map(c => (
-            <div key={c.label} className="py-3 sm:py-0 sm:px-5 sm:first:pl-0 sm:last:pr-0">
+            <div key={c.label} className="min-w-0 py-3 sm:py-0 sm:px-5 sm:first:pl-0 sm:last:pr-0">
               <div className="text-xs font-montserrat font-semibold uppercase tracking-wide text-white/60">{c.label}</div>
-              <div className="text-2xl sm:text-3xl font-montserrat font-bold mt-0.5">{formatCurrency(c.value, 2)}</div>
+              <div className="text-2xl sm:text-3xl font-montserrat font-bold mt-0.5 truncate">{formatCurrency(c.value, 2)}</div>
             </div>
           ))}
         </div>
@@ -155,19 +155,19 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <div onClick={() => navigate('/leads')} className="cursor-pointer hover:shadow-md transition-shadow rounded-lg">
+        <div onClick={() => navigate('/leads')} className="min-w-0 cursor-pointer hover:shadow-md transition-shadow rounded-lg">
           <StatCard label="Open Leads" value={summary?.leads ?? '—'} icon={Users} colour="text-arkalon-blue" />
         </div>
-        <div onClick={() => navigate('/contacts')} className="cursor-pointer hover:shadow-md transition-shadow rounded-lg">
+        <div onClick={() => navigate('/contacts')} className="min-w-0 cursor-pointer hover:shadow-md transition-shadow rounded-lg">
           <StatCard label="Contacts" value={summary?.contacts ?? '—'} icon={User} colour="text-arkalon-purple" />
         </div>
-        <div onClick={() => navigate('/accounts')} className="cursor-pointer hover:shadow-md transition-shadow rounded-lg">
+        <div onClick={() => navigate('/accounts')} className="min-w-0 cursor-pointer hover:shadow-md transition-shadow rounded-lg">
           <StatCard label="Accounts" value={summary?.accounts ?? '—'} icon={Building2} colour="text-arkalon-grey" />
         </div>
-        <div onClick={() => navigate('/deals')} className="cursor-pointer hover:shadow-md transition-shadow rounded-lg">
+        <div onClick={() => navigate('/deals')} className="min-w-0 cursor-pointer hover:shadow-md transition-shadow rounded-lg">
           <StatCard label="Open Deals" value={summary?.open_deals ?? '—'} icon={Briefcase} colour="text-arkalon-warning" />
         </div>
-        <div onClick={() => navigate('/deals')} className="cursor-pointer hover:shadow-md transition-shadow rounded-lg">
+        <div onClick={() => navigate('/deals')} className="min-w-0 cursor-pointer hover:shadow-md transition-shadow rounded-lg">
           <StatCard
             label="Weighted Pipeline"
             value={summary ? formatCurrencyCompact(summary.pipeline_value) : '—'}
@@ -175,7 +175,7 @@ export default function Dashboard() {
             colour="text-arkalon-blue"
           />
         </div>
-        <div onClick={() => navigate('/deals?stage=Closed+Won')} className="cursor-pointer hover:shadow-md transition-shadow rounded-lg">
+        <div onClick={() => navigate('/deals?stage=Closed+Won')} className="min-w-0 cursor-pointer hover:shadow-md transition-shadow rounded-lg">
           <StatCard
             label="Closed Won"
             value={summary ? formatCurrencyCompact(summary.closed_won_value) : '—'}
