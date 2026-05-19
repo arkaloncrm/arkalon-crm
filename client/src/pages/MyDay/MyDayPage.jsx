@@ -199,12 +199,6 @@ function NotebookPage(props) {
 
   return (
     <div className={`myday-page myday-page--${side}`}>
-      <div className="myday-rings" aria-hidden="true">
-        <span className="myday-ring" />
-        <span className="myday-ring" />
-        <span className="myday-ring" />
-      </div>
-
       <header className="myday-header">
         <h1 className="myday-day">{dayLabel}</h1>
         <span className="myday-date">{dateLabel}</span>
