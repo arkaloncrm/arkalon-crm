@@ -114,11 +114,12 @@
 /* --- ring binder holes ----------------------------------------------------- */
 .myday-rings {
   position: absolute;
-  left: 13px;
-  top: 26px;
+  left: 8px;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  justify-content: space-evenly;
 }
 
 .myday-ring {
@@ -126,7 +127,7 @@
   width: 16px;
   height: 16px;
   background: transparent;
-  border: 1.5px solid rgba(80, 60, 40, 0.35);
+  border: 1.5px solid rgba(80, 60, 40, 0.25);
   border-radius: 50%;
 }
 
@@ -338,18 +339,24 @@
   border: 9px solid rgba(139, 90, 43, 0.20);
   background: transparent !important;
   box-shadow: inset 0 0 0 2px rgba(139, 90, 43, 0.07);
-  filter: blur(0.6px);
+  filter: blur(1.5px);
   pointer-events: none;
   z-index: 0;
 }
 
+/* Second, fainter ring — slightly smaller and rotated so the two rings read
+   as a real, messy coffee-cup stain rather than one clean circle. */
 .coffee-ring::after {
   content: '';
   position: absolute;
-  top: 10px; left: 10px; right: 10px; bottom: 10px;
+  top: 10px;
+  left: -4px;
+  width: 95px;
+  height: 95px;
   border-radius: 50%;
-  border: 3px solid rgba(139, 90, 43, 0.10);
-  background: transparent !important;
+  border: 7px solid rgba(139, 90, 43, 0.11);
+  background: transparent;
+  transform: rotate(8deg);
 }
 
 /* --- progress strip -------------------------------------------------------- */
