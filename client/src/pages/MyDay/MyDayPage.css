@@ -1,0 +1,516 @@
+/* ===========================================================================
+   My Day — a personal daily notebook.
+   All notebook texture, paper, tabs, rings and decoration live here.
+   Tailwind handles only the surrounding app layout.
+   ======================================================================== */
+
+.myday-root {
+  --myday-wood-dark: #24180f;
+  --myday-wood-mid: #3a2618;
+  --myday-leather-dark: #1f1712;
+  --myday-paper: #f7f0df;
+  --myday-paper-warm: #fbf4e6;
+  --myday-paper-shadow: #d9c8a9;
+  --myday-ink: #2c241d;
+  --myday-muted-ink: #8e806d;
+  --myday-copper: #b77738;
+  --myday-copper-soft: #c8956a;
+  --myday-green: #6f8f32;
+  --myday-green-dark: #536d24;
+  --myday-green-soft: #9fb56a;
+  --myday-rule: rgba(120, 91, 54, 0.22);
+  --myday-rule-strong: rgba(160, 101, 49, 0.55);
+  --myday-danger: #b23b2e;
+
+  /* Break out of the <main> padding so the leather frame runs edge to edge. */
+  margin: -1rem;
+}
+
+@media (min-width: 640px) {
+  .myday-root { margin: -1.5rem; }
+}
+
+/* --- leather outer frame --------------------------------------------------- */
+.myday-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
+  overflow: hidden;
+  background-color: var(--myday-wood-dark);
+  background-image:
+    radial-gradient(ellipse at 18% 12%, rgba(58, 38, 24, 0.6), transparent 55%),
+    radial-gradient(ellipse at 85% 90%, rgba(13, 9, 6, 0.75), transparent 55%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(48deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 7px);
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.65);
+}
+
+/* --- physical notebook tabs (mobile) -------------------------------------- */
+.myday-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  padding: 16px 12px 0;
+}
+
+.myday-tab {
+  flex: 0 0 auto;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 9px 20px 16px;
+  border: none;
+  border-radius: 13px 13px 0 0;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: -9px;
+  transform: translateY(7px);
+  filter: brightness(0.86) saturate(0.85);
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.myday-tab--today {
+  background: linear-gradient(180deg, #7d9f3d 0%, var(--myday-green) 100%);
+  color: var(--myday-paper);
+}
+
+.myday-tab--tomorrow {
+  background: linear-gradient(180deg, var(--myday-paper-warm) 0%, var(--myday-paper-shadow) 100%);
+  color: var(--myday-muted-ink);
+  padding-top: 11px;
+}
+
+.myday-tab.is-active {
+  transform: translateY(0);
+  filter: none;
+  z-index: 4;
+  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.32);
+}
+
+/* --- the paper page -------------------------------------------------------- */
+.myday-page {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0 12px;
+  padding: 22px 18px 16px 46px;
+  border-radius: 11px 11px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  background-color: var(--myday-paper);
+  background-image:
+    repeating-linear-gradient(to bottom, transparent 0 37px, var(--myday-rule) 37px 38px),
+    radial-gradient(ellipse at 100% 0%, rgba(217, 200, 169, 0.5), transparent 42%),
+    radial-gradient(ellipse at 0% 100%, rgba(217, 200, 169, 0.45), transparent 40%);
+  box-shadow:
+    inset 0 0 60px rgba(120, 91, 54, 0.16),
+    0 6px 22px rgba(0, 0, 0, 0.4);
+}
+
+/* --- ring binder holes ----------------------------------------------------- */
+.myday-rings {
+  position: absolute;
+  left: 13px;
+  top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.myday-ring {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--myday-wood-dark);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* --- page header ----------------------------------------------------------- */
+.myday-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.myday-day {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-weight: 700;
+  font-size: 42px;
+  line-height: 1;
+  color: var(--myday-ink);
+  margin: 0;
+}
+
+.myday-date {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 16px;
+  color: var(--myday-copper);
+  white-space: nowrap;
+}
+
+.myday-rule-copper {
+  height: 3px;
+  margin: 10px 0 6px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    var(--myday-rule-strong) 0%,
+    var(--myday-copper) 55%,
+    rgba(183, 119, 56, 0.35) 100%);
+}
+
+/* --- task list ------------------------------------------------------------- */
+.myday-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.myday-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--myday-rule);
+  transform: translateX(0);
+  transition: transform 0.25s ease;
+  will-change: transform;
+}
+
+.myday-row.is-dragging {
+  transition: none;
+  border-radius: 9px;
+  border-bottom-color: transparent;
+  background: var(--myday-paper-warm);
+  box-shadow: 0 7px 20px rgba(0, 0, 0, 0.2);
+}
+
+.myday-circle {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: 0 2px;
+  border-radius: 50%;
+  border: 2px solid var(--myday-copper);
+  background: transparent;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.myday-circle.is-done {
+  background: var(--myday-green);
+  border-color: var(--myday-green-dark);
+}
+
+.myday-text {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Caveat', cursive;
+  font-size: 24px;
+  line-height: 1.3;
+  color: var(--myday-ink);
+  cursor: pointer;
+  word-break: break-word;
+  padding: 2px 0;
+}
+
+.myday-text.is-done {
+  text-decoration: line-through;
+  text-decoration-color: var(--myday-muted-ink);
+  color: var(--myday-muted-ink);
+  opacity: 0.72;
+}
+
+.myday-rowdelete {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--myday-copper-soft);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.myday-arrow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--myday-copper);
+  cursor: pointer;
+}
+
+.myday-arrow:active { transform: scale(0.86); }
+
+/* Delete is a hover affordance on pointer devices; touch uses long-press. */
+@media (hover: hover) {
+  .myday-row:hover .myday-rowdelete { opacity: 0.55; }
+  .myday-rowdelete:hover { opacity: 1; color: var(--myday-danger); }
+}
+
+@media (hover: none) {
+  .myday-rowdelete { display: none; }
+}
+
+/* --- add item -------------------------------------------------------------- */
+.myday-add-trigger {
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: 50px;
+  padding: 8px 2px;
+  border: none;
+  background: transparent;
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  color: var(--myday-copper-soft);
+  cursor: pointer;
+}
+
+.myday-add-trigger:active { color: var(--myday-copper); }
+
+.myday-add-input {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  padding: 8px 2px;
+  border: none;
+  border-bottom: 2px dashed var(--myday-copper-soft);
+  background: transparent;
+  font-family: 'Caveat', cursive;
+  font-size: 24px;
+  color: var(--myday-ink);
+  outline: none;
+}
+
+.myday-add-input::placeholder { color: var(--myday-copper-soft); opacity: 0.7; }
+
+.myday-loading,
+.myday-blank {
+  font-family: 'Caveat', cursive;
+  font-size: 21px;
+  color: var(--myday-muted-ink);
+  text-align: center;
+  padding: 14px 0;
+}
+
+.myday-blank { opacity: 0.7; }
+
+/* --- swipe instruction ----------------------------------------------------- */
+.myday-swipe-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin: 14px 0 4px;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--myday-copper-soft);
+}
+
+.myday-swipe-hint__action {
+  color: var(--myday-copper);
+  font-weight: 700;
+}
+
+/* --- decorations ----------------------------------------------------------- */
+.myday-scribble {
+  position: absolute;
+  right: 22%;
+  bottom: 116px;
+  width: 78px;
+  height: 78px;
+  color: var(--myday-copper);
+  opacity: 0.1;
+  transform: rotate(-13deg);
+  pointer-events: none;
+}
+
+.coffee-ring {
+  position: absolute;
+  right: -20px;
+  bottom: 80px;
+  width: 120px;
+  height: 120px;
+  border: 8px solid rgba(157, 103, 41, 0.25);
+  border-radius: 50%;
+  filter: blur(0.5px);
+  pointer-events: none;
+}
+
+.coffee-ring::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 3px solid rgba(157, 103, 41, 0.12);
+  border-radius: 50%;
+}
+
+/* --- progress strip -------------------------------------------------------- */
+.myday-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 18px;
+  background: var(--myday-leather-dark);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.myday-progress__text {
+  flex: 0 0 auto;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 14px;
+  color: var(--myday-paper-shadow);
+}
+
+.myday-progress__count {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--myday-green-soft);
+}
+
+.myday-progress__bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(247, 240, 223, 0.14);
+  overflow: hidden;
+}
+
+.myday-progress__fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--myday-green) 0%, var(--myday-green-soft) 100%);
+  transition: width 0.4s ease;
+}
+
+.myday-progress__btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: var(--myday-green);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.myday-progress__btn:active { transform: scale(0.92); }
+
+/* --- desktop two-page spread ---------------------------------------------- */
+.myday-spread {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 24px 18px 0;
+}
+
+.myday-spine {
+  flex: 0 0 2px;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 30px 16px rgba(0, 0, 0, 0.5);
+  z-index: 3;
+}
+
+.myday-page--left { margin: 0; border-radius: 10px 0 0 0; }
+.myday-page--right { margin: 0; border-radius: 0 10px 0 0; }
+
+/* --- delete confirmation --------------------------------------------------- */
+.myday-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 14, 9, 0.55);
+}
+
+.myday-confirm__card {
+  width: 100%;
+  max-width: 320px;
+  padding: 22px 22px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--myday-copper-soft);
+  background: var(--myday-paper-warm);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+.myday-confirm__title {
+  margin: 0;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--myday-ink);
+}
+
+.myday-confirm__body {
+  margin: 8px 0 18px;
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  color: var(--myday-muted-ink);
+}
+
+.myday-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.myday-confirm__cancel,
+.myday-confirm__delete {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.myday-confirm__cancel {
+  border: 1px solid var(--myday-paper-shadow);
+  background: transparent;
+  color: var(--myday-muted-ink);
+}
+
+.myday-confirm__delete {
+  border: none;
+  background: var(--myday-danger);
+  color: #fff;
+}
+
+@media (min-width: 380px) {
+  .myday-day { font-size: 46px; }
+}

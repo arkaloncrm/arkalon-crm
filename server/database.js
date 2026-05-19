@@ -308,6 +308,20 @@ const SCHEMA = `
     updated_at TIMESTAMP DEFAULT NOW()
   );
 
+  CREATE TABLE IF NOT EXISTS my_day_items (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    title TEXT NOT NULL,
+    date_bucket TEXT NOT NULL CHECK (date_bucket IN ('today', 'tomorrow')),
+    task_date DATE DEFAULT CURRENT_DATE,
+    completed BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP,
+    pushed_from TEXT CHECK (pushed_from IN ('today', 'tomorrow'))
+  );
+
   -- leads.converted_deal_id references deals(id), but deals is created after
   -- leads, so the foreign key is attached once both tables exist.
   DO $$ BEGIN
@@ -370,7 +384,7 @@ async function initDb() {
   }
   await seedDefaultUser();
   await seedDefaultProducts();
-  console.log('[DB] PostgreSQL schema initialised (13 tables ready)');
+  console.log('[DB] PostgreSQL schema initialised (14 tables ready)');
 }
 
 module.exports = { pool, P, initDb };
