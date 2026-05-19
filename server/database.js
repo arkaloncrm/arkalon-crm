@@ -263,6 +263,51 @@ const SCHEMA = `
     created_at TIMESTAMP DEFAULT NOW()
   );
 
+  CREATE TABLE IF NOT EXISTS research_queue (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    company_name TEXT,
+    contact_name TEXT,
+    first_name TEXT,
+    last_name TEXT,
+    email TEXT,
+    phone TEXT,
+    mobile TEXT,
+    website TEXT,
+    linkedin_url TEXT,
+    business_unit TEXT CHECK (business_unit IN ('ASC', 'Simply Seated', 'Both')),
+    candidate_type TEXT CHECK (candidate_type IN (
+      'Lead Candidate', 'Account Candidate', 'Contact Candidate',
+      'Event Opportunity', 'Partner Candidate', 'Supplier List Opportunity',
+      'Research Note', 'Duplicate / Existing Record Match'
+    )),
+    status TEXT DEFAULT 'New' CHECK (status IN (
+      'New', 'Needs Review', 'Needs Enrichment', 'Duplicate',
+      'Approved', 'Converted', 'Rejected', 'Parked'
+    )),
+    source TEXT,
+    source_url TEXT,
+    source_payload TEXT,
+    ai_summary TEXT,
+    why_it_matters TEXT,
+    suggested_next_action TEXT,
+    confidence_level TEXT CHECK (confidence_level IN ('High', 'Medium', 'Low')),
+    duplicate_match_type TEXT,
+    duplicate_match_record_id INTEGER,
+    review_notes TEXT,
+    rejected_reason TEXT,
+    assigned_to_id INTEGER REFERENCES users(id),
+    reviewed_by_id INTEGER REFERENCES users(id),
+    reviewed_at TIMESTAMP,
+    converted_lead_id INTEGER REFERENCES leads(id),
+    converted_account_id INTEGER REFERENCES accounts(id),
+    converted_contact_id INTEGER REFERENCES contacts(id),
+    converted_deal_id INTEGER REFERENCES deals(id),
+    converted_task_id INTEGER REFERENCES tasks(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+  );
+
   -- leads.converted_deal_id references deals(id), but deals is created after
   -- leads, so the foreign key is attached once both tables exist.
   DO $$ BEGIN
@@ -325,7 +370,7 @@ async function initDb() {
   }
   await seedDefaultUser();
   await seedDefaultProducts();
-  console.log('[DB] PostgreSQL schema initialised (12 tables ready)');
+  console.log('[DB] PostgreSQL schema initialised (13 tables ready)');
 }
 
 module.exports = { pool, P, initDb };

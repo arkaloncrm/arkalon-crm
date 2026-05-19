@@ -79,3 +79,55 @@ export const CONTACT_ROLES = ['Primary', 'Operations', 'Billing', 'Technical', '
 export const UNIT_TYPES = ['per month', 'per seat/month', 'per day', 'per item', 'per project', 'flat fee'];
 
 export const FORECAST_CATEGORIES = ['Pipeline', 'Best Case', 'Commit', 'Closed Won', 'Omitted'];
+
+// --- Research Queue ---------------------------------------------------------
+// research_queue.business_unit permits 'Both' (unlike leads/deals), so it has
+// its own list rather than reusing BUSINESS_UNITS.
+export const RESEARCH_BUSINESS_UNITS = ['ASC', 'Simply Seated', 'Both'];
+
+export const RESEARCH_CANDIDATE_TYPES = [
+  'Lead Candidate', 'Account Candidate', 'Contact Candidate',
+  'Event Opportunity', 'Partner Candidate', 'Supplier List Opportunity',
+  'Research Note', 'Duplicate / Existing Record Match',
+];
+
+export const RESEARCH_STATUSES = [
+  'New', 'Needs Review', 'Needs Enrichment', 'Duplicate',
+  'Approved', 'Converted', 'Rejected', 'Parked',
+];
+
+export const CONFIDENCE_LEVELS = ['High', 'Medium', 'Low'];
+
+export const RESEARCH_STATUS_COLOURS = {
+  'New': 'bg-blue-100 text-blue-700',
+  'Needs Review': 'bg-amber-100 text-amber-800',
+  'Needs Enrichment': 'bg-orange-100 text-orange-700',
+  'Duplicate': 'bg-red-100 text-red-700',
+  'Approved': 'bg-green-100 text-green-700',
+  'Converted': 'bg-purple-100 text-purple-700',
+  'Rejected': 'bg-gray-100 text-gray-500',
+  'Parked': 'bg-slate-200 text-slate-600',
+};
+
+export const CONFIDENCE_COLOURS = {
+  'High': 'bg-green-100 text-green-700',
+  'Medium': 'bg-amber-100 text-amber-800',
+  'Low': 'bg-red-100 text-red-700',
+};
+
+export const CANDIDATE_TYPE_COLOURS = {
+  'Lead Candidate': 'bg-blue-100 text-blue-700',
+  'Account Candidate': 'bg-indigo-100 text-indigo-700',
+  'Contact Candidate': 'bg-teal-100 text-teal-700',
+  'Event Opportunity': 'bg-purple-100 text-purple-700',
+  'Partner Candidate': 'bg-cyan-100 text-cyan-700',
+  'Supplier List Opportunity': 'bg-amber-100 text-amber-800',
+  'Research Note': 'bg-slate-100 text-slate-600',
+  'Duplicate / Existing Record Match': 'bg-red-100 text-red-700',
+};
+
+export const RESEARCH_BU_COLOURS = {
+  'ASC': 'bg-blue-100 text-blue-700',
+  'Simply Seated': 'bg-teal-100 text-teal-700',
+  'Both': 'bg-purple-100 text-purple-700',
+};

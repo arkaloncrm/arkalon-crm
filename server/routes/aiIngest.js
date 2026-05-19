@@ -23,122 +23,75 @@ async function logIngest(source, payload, record_type, record_id, status, error_
   }
 }
 
-// POST /api/ai/ingest
+// Allowed CHECK-constraint values on research_queue — anything else is coerced
+// to a safe default so a malformed ingest payload can't 500 on the constraint.
+const VALID_CANDIDATE_TYPES = [
+  'Lead Candidate', 'Account Candidate', 'Contact Candidate',
+  'Event Opportunity', 'Partner Candidate', 'Supplier List Opportunity',
+  'Research Note', 'Duplicate / Existing Record Match',
+];
+const VALID_BUSINESS_UNITS = ['ASC', 'Simply Seated', 'Both'];
+const VALID_CONFIDENCE = ['High', 'Medium', 'Low'];
+
+// POST /api/ai/ingest — all incoming records land in the Research Queue as
+// staging candidates; they are promoted to live CRM records by a human review.
 router.post('/ingest', validateApiKey, async (req, res) => {
   const { record_type, business_unit, data, source } = req.body;
 
-  if (!record_type || !data) {
-    return res.status(400).json({ success: false, error: 'record_type and data are required' });
-  }
-
-  const supportedTypes = ['lead', 'contact', 'account', 'task', 'activity'];
-  if (!supportedTypes.includes(record_type)) {
-    return res.status(400).json({
-      success: false,
-      error: `Unsupported record_type. Supported: ${supportedTypes.join(', ')}`
-    });
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ success: false, error: 'data object is required' });
   }
 
   try {
-    let result;
-    const ingestData = { ...data, business_unit: data.business_unit || business_unit };
+    const bu = data.business_unit || business_unit || null;
+    const safeBu = VALID_BUSINESS_UNITS.includes(bu) ? bu : null;
+    const candidateType = VALID_CANDIDATE_TYPES.includes(data.candidate_type)
+      ? data.candidate_type
+      : 'Lead Candidate';
+    const confidence = VALID_CONFIDENCE.includes(data.confidence_level)
+      ? data.confidence_level
+      : 'Medium';
 
-    switch (record_type) {
-      case 'lead': {
-        if (!ingestData.last_name || !ingestData.company) {
-          return res.status(400).json({ success: false, error: 'Lead requires last_name and company' });
-        }
-        const r = await pool.query(P(`
-          INSERT INTO leads (salutation, first_name, last_name, title, company, email, phone,
-            mobile, lead_source, lead_status, business_unit, description, priority)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          RETURNING id
-        `), [
-          ingestData.salutation, ingestData.first_name, ingestData.last_name, ingestData.title,
-          ingestData.company, ingestData.email, ingestData.phone, ingestData.mobile,
-          ingestData.lead_source, ingestData.lead_status || 'New', ingestData.business_unit,
-          ingestData.description, ingestData.priority
-        ]);
-        result = (await pool.query(P('SELECT * FROM leads WHERE id = ?'), [r.rows[0].id])).rows[0];
-        break;
-      }
-      case 'contact': {
-        if (!ingestData.last_name) {
-          return res.status(400).json({ success: false, error: 'Contact requires last_name' });
-        }
-        const r = await pool.query(P(`
-          INSERT INTO contacts (account_id, salutation, first_name, last_name, title,
-            email, phone, mobile, business_unit, description)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          RETURNING id
-        `), [
-          ingestData.account_id, ingestData.salutation, ingestData.first_name, ingestData.last_name,
-          ingestData.title, ingestData.email, ingestData.phone, ingestData.mobile,
-          ingestData.business_unit, ingestData.description
-        ]);
-        result = (await pool.query(P('SELECT * FROM contacts WHERE id = ?'), [r.rows[0].id])).rows[0];
-        break;
-      }
-      case 'account': {
-        if (!ingestData.name) {
-          return res.status(400).json({ success: false, error: 'Account requires name' });
-        }
-        const r = await pool.query(P(`
-          INSERT INTO accounts (name, website, industry, phone, business_unit, description)
-          VALUES (?, ?, ?, ?, ?, ?)
-          RETURNING id
-        `), [
-          ingestData.name, ingestData.website, ingestData.industry, ingestData.phone,
-          ingestData.business_unit, ingestData.description
-        ]);
-        result = (await pool.query(P('SELECT * FROM accounts WHERE id = ?'), [r.rows[0].id])).rows[0];
-        break;
-      }
-      case 'task': {
-        if (!ingestData.subject) {
-          return res.status(400).json({ success: false, error: 'Task requires subject' });
-        }
-        const r = await pool.query(P(`
-          INSERT INTO tasks (subject, status, priority, due_datetime, is_all_day,
-            description, business_unit, lead_id, contact_id, account_id, deal_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          RETURNING id
-        `), [
-          ingestData.subject, ingestData.status || 'Not Started', ingestData.priority || 'Normal',
-          ingestData.due_datetime, ingestData.is_all_day !== false ? 1 : 0,
-          ingestData.description, ingestData.business_unit,
-          ingestData.lead_id, ingestData.contact_id, ingestData.account_id, ingestData.deal_id
-        ]);
-        result = (await pool.query(P('SELECT * FROM tasks WHERE id = ?'), [r.rows[0].id])).rows[0];
-        break;
-      }
-      case 'activity': {
-        if (!ingestData.type || !ingestData.subject) {
-          return res.status(400).json({ success: false, error: 'Activity requires type and subject' });
-        }
-        const r = await pool.query(P(`
-          INSERT INTO activities (type, subject, status, direction, outcome, start_datetime,
-            description, next_action, next_action_date, lead_id, contact_id,
-            account_id, deal_id, business_unit)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          RETURNING id
-        `), [
-          ingestData.type, ingestData.subject, ingestData.status || 'Held',
-          ingestData.direction, ingestData.outcome, ingestData.start_datetime,
-          ingestData.description, ingestData.next_action, ingestData.next_action_date,
-          ingestData.lead_id, ingestData.contact_id, ingestData.account_id,
-          ingestData.deal_id, ingestData.business_unit
-        ]);
-        result = (await pool.query(P('SELECT * FROM activities WHERE id = ?'), [r.rows[0].id])).rows[0];
-        break;
-      }
-    }
+    const aiSummary = data.ai_summary || data.summary || data.executive_summary || null;
+    const contactName = data.contact_name
+      || [data.first_name, data.last_name].filter(Boolean).join(' ').trim()
+      || null;
 
-    await logIngest(source || 'ai', req.body, record_type, result.id, 'success', null);
-    return res.status(201).json({ success: true, data: result });
+    const insert = await pool.query(P(`
+      INSERT INTO research_queue (
+        title, company_name, contact_name, first_name, last_name, email, phone, mobile,
+        website, linkedin_url, business_unit, candidate_type, status, source, source_url,
+        source_payload, ai_summary, why_it_matters, suggested_next_action, confidence_level
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'New', ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
+    `), [
+      data.title || null,
+      data.company || data.company_name || null,
+      contactName,
+      data.first_name || null,
+      data.last_name || null,
+      data.email || null,
+      data.phone || null,
+      data.mobile || null,
+      data.website || null,
+      data.linkedin_url || null,
+      safeBu,
+      candidateType,
+      source || data.source || 'AI Ingest',
+      data.source_url || null,
+      JSON.stringify(req.body),
+      aiSummary,
+      data.why_it_matters || null,
+      data.suggested_next_action || null,
+      confidence,
+    ]);
+
+    const newId = insert.rows[0].id;
+    await logIngest(source || 'ai', req.body, record_type || 'research_queue', newId, 'success', null);
+    return res.status(201).json({ success: true, destination: 'research_queue', id: newId });
 
   } catch (err) {
-    await logIngest(source || 'ai', req.body, record_type, null, 'error', err.message);
+    await logIngest(source || 'ai', req.body, record_type || 'research_queue', null, 'error', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

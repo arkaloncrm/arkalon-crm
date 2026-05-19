@@ -4,6 +4,7 @@ const variants = {
   primary: 'bg-arkalon-blue text-white hover:bg-blue-700',
   secondary: 'bg-white text-slate-700 border border-arkalon-lightgrey hover:bg-slate-50',
   danger: 'bg-arkalon-danger text-white hover:bg-red-700',
+  success: 'bg-green-600 text-white hover:bg-green-700',
   ghost: 'text-slate-600 hover:bg-slate-100',
 };
 

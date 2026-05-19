@@ -7,6 +7,10 @@ import AppLayout from './components/Layout/AppLayout.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 
+import ResearchQueueList from './pages/ResearchQueue/ResearchQueueList.jsx';
+import ResearchQueueDetail from './pages/ResearchQueue/ResearchQueueDetail.jsx';
+import ResearchQueueForm from './pages/ResearchQueue/ResearchQueueForm.jsx';
+
 import LeadsList from './pages/Leads/LeadsList.jsx';
 import LeadDetail from './pages/Leads/LeadDetail.jsx';
 import LeadForm from './pages/Leads/LeadForm.jsx';
@@ -54,6 +58,11 @@ export default function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+
+        <Route path="research-queue" element={<ResearchQueueList />} />
+        <Route path="research-queue/new" element={<ResearchQueueForm />} />
+        <Route path="research-queue/:id" element={<ResearchQueueDetail />} />
+        <Route path="research-queue/:id/edit" element={<ResearchQueueForm />} />
 
         <Route path="leads" element={<LeadsList />} />
         <Route path="leads/new" element={<LeadForm />} />
