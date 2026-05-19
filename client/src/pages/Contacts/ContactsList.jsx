@@ -164,13 +164,15 @@ export default function ContactsList() {
     }
   };
 
-  // Swipe-right Call action — reuses the shared click-to-call logging panel.
+  // Swipe-right Call action — triggers the device dialler and opens the shared
+  // call-logging panel, matching the click-to-call links on detail pages.
   const handleSwipeCall = (contact) => {
     const phone = contact.phone || contact.mobile;
     if (!phone) {
       addToast('No phone number on record', 'error');
       return;
     }
+    window.location.href = 'tel:' + phone;
     setCall({
       phone,
       name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
@@ -271,7 +273,7 @@ export default function ContactsList() {
                 )}
                 <div className="mt-2 space-y-0.5">
                   <div className="text-xs text-slate-500 font-opensans truncate">{contact.email || '—'}</div>
-                  <div className="text-xs text-slate-500 font-opensans truncate">{contact.phone || '—'}</div>
+                  <div className="text-xs text-slate-500 font-opensans truncate">{contact.phone || contact.mobile || '—'}</div>
                 </div>
                 <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
                   {contact.linkedin_url && (
