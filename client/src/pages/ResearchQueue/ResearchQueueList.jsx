@@ -6,6 +6,7 @@ import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { ConvertDropdown, RejectModal } from '../../components/ResearchQueue/ResearchQueueActions.jsx';
+import ScanCardButton from '../../components/ResearchQueue/ScanCardButton.jsx';
 import { researchQueueApi } from '../../api/researchQueue.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import {
@@ -123,7 +124,10 @@ export default function ResearchQueueList() {
             {records.length}
           </span>
         </div>
-        <Button onClick={() => navigate('/research-queue/new')}>+ Add Record</Button>
+        <div className="flex items-center gap-2">
+          <ScanCardButton />
+          <Button onClick={() => navigate('/research-queue/new')}>+ Add Record</Button>
+        </div>
       </div>
 
       {/* Filters */}

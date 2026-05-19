@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import { researchQueueApi } from '../../api/researchQueue.js';
@@ -42,13 +42,31 @@ const EMPTY = {
   suggested_next_action: '', review_notes: '', rejected_reason: '',
 };
 
+// Build the initial form from router state — used by the Business Card Scanner,
+// which navigates here with extracted fields for the user to review and save.
+function initialForm(state) {
+  if (!state) return EMPTY;
+  const next = { ...EMPTY };
+  if (state.prefill && typeof state.prefill === 'object') {
+    for (const key of Object.keys(EMPTY)) {
+      const v = state.prefill[key];
+      if (v != null && v !== '') next[key] = v;
+    }
+  }
+  if (state.candidate_type) next.candidate_type = state.candidate_type;
+  if (state.source) next.source = state.source;
+  if (state.confidence_level) next.confidence_level = state.confidence_level;
+  return next;
+}
+
 export default function ResearchQueueForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
   const isEdit = Boolean(id);
 
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(() => (isEdit ? EMPTY : initialForm(location.state)));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
