@@ -129,9 +129,12 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div>
+    <div className="arkalon-page">
       {/* Commission Pipeline — weighted commission from open deals by close date */}
-      <div className="bg-arkalon-navy rounded-lg px-5 py-4 mb-6 text-white">
+      <div
+        className="arkalon-copper-rule rounded-lg px-5 py-4 mb-6 text-white"
+        style={{ background: 'var(--arkalon-navy-dark)' }}
+      >
         <div className="text-[11px] font-montserrat font-bold uppercase tracking-[0.2em] text-white/50 mb-3">
           My Commission Pipeline
         </div>

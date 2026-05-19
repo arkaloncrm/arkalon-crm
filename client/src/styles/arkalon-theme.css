@@ -1,0 +1,70 @@
+/* ===========================================================================
+   Arkalon Executive Notebook theme tokens.
+   Scope: Dashboard, Reports, Sidebar only. Never targets .myday-* selectors.
+   ======================================================================== */
+
+:root {
+  --arkalon-bg: #f5f1e8;
+  --arkalon-surface: #fbf7ee;
+  --arkalon-surface-strong: #fffaf0;
+  --arkalon-ink: #182235;
+  --arkalon-muted: #6f7890;
+  --arkalon-navy: #0b2f63;
+  --arkalon-navy-dark: #08264f;
+  --arkalon-blue: #1f6fca;
+  --arkalon-copper: #b77738;
+  --arkalon-copper-soft: #c8956a;
+  --arkalon-green: #6f8f32;
+  --arkalon-border: rgba(120, 91, 54, 0.16);
+  --arkalon-shadow: 0 2px 8px rgba(36, 24, 15, 0.06);
+}
+
+/* Page shell — warm cream that bleeds edge-to-edge through <main>'s padding. */
+.arkalon-page {
+  background: var(--arkalon-bg);
+  margin: -1rem;
+  padding: 1rem;
+  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
+}
+
+@media (min-width: 640px) {
+  .arkalon-page {
+    margin: -1.5rem;
+    padding: 1.5rem;
+  }
+}
+
+.arkalon-card {
+  background: var(--arkalon-surface);
+  border: 0.5px solid var(--arkalon-border);
+  border-radius: 10px;
+  box-shadow: var(--arkalon-shadow);
+}
+
+.arkalon-copper-rule {
+  border-bottom: 1.5px solid var(--arkalon-copper-soft);
+}
+
+.arkalon-section-title {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--arkalon-copper);
+  font-weight: 500;
+}
+
+/* --- Reports: warmer table headers, scoped via wrapper class only --------- */
+.arkalon-reports thead {
+  background-color: var(--arkalon-surface-strong);
+}
+
+/* --- Sidebar: deepened navy + copper active accent ----------------------- */
+.arkalon-sidebar {
+  background-color: var(--arkalon-navy-dark);
+}
+
+.arkalon-sidebar-link-active {
+  background-color: rgba(0, 0, 0, 0.22);
+  border-left: 3px solid var(--arkalon-copper);
+}

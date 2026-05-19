@@ -57,7 +57,7 @@ function ArkalonLogo({ collapsed }) {
 const navLinkClass = ({ isActive }) =>
   `flex items-center gap-3 px-4 py-3 md:py-2.5 mx-1 my-0.5 rounded transition-colors
    ${isActive
-    ? 'bg-arkalon-blue border-l-[3px] border-arkalon-lightblue pl-[13px]'
+    ? 'arkalon-sidebar-link-active pl-[13px]'
     : 'border-l-[3px] border-transparent hover:bg-white/10'
   }`;
 
@@ -78,7 +78,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
       {/* Drawer below md, in-flow persistent sidebar at md and up */}
       <aside
         className={`
-          bg-arkalon-navy flex flex-col h-screen z-50
+          arkalon-sidebar flex flex-col h-screen z-50
           fixed inset-y-0 left-0 transition-transform duration-200
           md:static md:flex-shrink-0
           w-64 ${collapsed ? 'md:w-[60px]' : 'md:w-[220px]'}

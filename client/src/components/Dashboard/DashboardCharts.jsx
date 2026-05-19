@@ -34,7 +34,7 @@ const BU_FILL = {
 
 function ChartCard({ title, children }) {
   return (
-    <div className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm overflow-hidden">
+    <div className="arkalon-card overflow-hidden">
       <div className="px-5 py-3 border-b border-arkalon-lightgrey">
         <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">{title}</h3>
       </div>

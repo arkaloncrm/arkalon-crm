@@ -82,7 +82,7 @@ export default function ReportsDashboard() {
   const ActiveReport = active.component;
 
   return (
-    <div>
+    <div className="arkalon-page arkalon-reports">
       <div className="mb-6">
         <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Reports</h2>
         <p className="text-arkalon-grey text-sm font-opensans mt-0.5">
@@ -98,11 +98,10 @@ export default function ReportsDashboard() {
             <button
               key={r.id}
               onClick={() => setActiveId(r.id)}
-              className={`text-left bg-white rounded-lg shadow-sm border border-arkalon-lightgrey border-l-4 p-4 transition-all ${
-                isActive
-                  ? 'border-l-arkalon-blue bg-blue-50/50'
-                  : 'border-l-transparent hover:shadow-md'
+              className={`text-left arkalon-card border-l-4 p-4 transition-all ${
+                isActive ? '' : 'border-l-transparent hover:shadow-md'
               }`}
+              style={isActive ? { borderLeftColor: 'var(--arkalon-copper)', background: 'var(--arkalon-surface-strong)' } : undefined}
             >
               <div
                 className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${

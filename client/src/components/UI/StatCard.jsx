@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function StatCard({ label, value, sub, icon: Icon, colour = 'text-arkalon-blue' }) {
   return (
-    <div className="bg-white border border-arkalon-lightgrey rounded-lg p-4 flex items-start gap-3">
+    <div className="arkalon-card p-4 flex items-start gap-3">
       {Icon && (
         <div className={`w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0`}>
           <Icon className={`w-5 h-5 ${colour}`} />
