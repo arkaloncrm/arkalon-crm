@@ -5,7 +5,7 @@ import Badge from '../../components/UI/Badge.jsx';
 import { dealsApi } from '../../api/deals.js';
 import { formatCurrency, formatMrr } from '../../utils/formatCurrency.js';
 import { formatDate, closeDateInfo } from '../../utils/formatDate.js';
-import { exportToXlsx } from '../../utils/exportCsv.js';
+import { exportToCsv } from '../../utils/exportCsv.js';
 import { STAGE_COLOURS } from '../../utils/constants.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ReportShell, ReportLoading, ReportEmpty, ExportButton, FilterField, BU_COLOURS } from './reportPrimitives.jsx';
@@ -89,7 +89,7 @@ export default function OpenPipelineReport() {
   return (
     <ReportShell
       filters={filters}
-      action={<ExportButton onClick={() => exportToXlsx('open_pipeline', rows, CSV_COLUMNS)} disabled={rows.length === 0} />}
+      action={<ExportButton onClick={() => exportToCsv('open_pipeline', rows, CSV_COLUMNS)} disabled={rows.length === 0} />}
     >
       {deals === null ? (
         <ReportLoading />
@@ -133,7 +133,7 @@ export default function OpenPipelineReport() {
                   <Td>{d.business_unit === 'ASC' ? formatMrr(d.monthly_recurring_revenue) : '—'}</Td>
                   <Td>
                     <span className="font-bold" style={{ color: '#0073C6' }}>
-                      {formatCurrency(d.total_contract_earnings)}
+                      {formatCurrency(d.total_contract_earnings, 2)}
                     </span>
                   </Td>
                   <Td>{d.probability != null ? `${d.probability}%` : '—'}</Td>
@@ -153,7 +153,7 @@ export default function OpenPipelineReport() {
               <Td className="font-semibold">{formatCurrency(totals.gross)}</Td>
               <Td></Td>
               <Td className="font-bold" >
-                <span style={{ color: '#0073C6' }}>{formatCurrency(totals.commission)}</span>
+                <span style={{ color: '#0073C6' }}>{formatCurrency(totals.commission, 2)}</span>
               </Td>
               <Td></Td>
               <Td></Td>

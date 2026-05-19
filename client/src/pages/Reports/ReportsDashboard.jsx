@@ -1,33 +1,57 @@
 import React, { useState } from 'react';
-import { TrendingUp, DollarSign, Calendar, AlertTriangle, BarChart2, Activity } from 'lucide-react';
-import OpenPipelineReport from './OpenPipelineReport.jsx';
+import { Wallet, DollarSign, TrendingUp, Scale, Calendar, ListChecks, AlertTriangle, BarChart2, Activity } from 'lucide-react';
+import CommissionEarnedReport from './CommissionEarnedReport.jsx';
 import CommissionForecastReport from './CommissionForecastReport.jsx';
+import OpenPipelineReport from './OpenPipelineReport.jsx';
+import BuSplitReport from './BuSplitReport.jsx';
 import ClosingSoonReport from './ClosingSoonReport.jsx';
+import CommissionByDealReport from './CommissionByDealReport.jsx';
 import StaleDealsReport from './StaleDealsReport.jsx';
 import LeadSourceReport from './LeadSourceReport.jsx';
 import ActivitySummaryReport from './ActivitySummaryReport.jsx';
 
 const REPORTS = [
   {
-    id: 'open-pipeline',
-    label: 'Open Pipeline',
-    icon: TrendingUp,
-    description: 'All open deals by stage and value',
-    component: OpenPipelineReport,
+    id: 'commission-earned',
+    label: 'Commission Earned',
+    icon: Wallet,
+    description: 'Commission from deals closed won this month',
+    component: CommissionEarnedReport,
   },
   {
     id: 'commission-forecast',
     label: 'Commission Forecast',
     icon: DollarSign,
-    description: 'Projected commission by business unit and deal type',
+    description: 'Forecast commission this quarter, grouped by month',
     component: CommissionForecastReport,
+  },
+  {
+    id: 'open-pipeline',
+    label: 'Pipeline Commission',
+    icon: TrendingUp,
+    description: 'All open deals by stage and commission value',
+    component: OpenPipelineReport,
+  },
+  {
+    id: 'bu-split',
+    label: 'ASC vs Simply Seated',
+    icon: Scale,
+    description: 'Commission split across the two business units',
+    component: BuSplitReport,
   },
   {
     id: 'closing-soon',
     label: 'Closing Soon',
     icon: Calendar,
-    description: 'Deals overdue or due to close in the selected window',
+    description: 'Overdue deals and 30/60/90-day close windows',
     component: ClosingSoonReport,
+  },
+  {
+    id: 'commission-by-deal',
+    label: 'Commission by Deal',
+    icon: ListChecks,
+    description: 'Every deal — sortable, filterable, exportable',
+    component: CommissionByDealReport,
   },
   {
     id: 'stale-deals',
@@ -53,7 +77,7 @@ const REPORTS = [
 ];
 
 export default function ReportsDashboard() {
-  const [activeId, setActiveId] = useState('open-pipeline');
+  const [activeId, setActiveId] = useState('commission-earned');
   const active = REPORTS.find((r) => r.id === activeId) || REPORTS[0];
   const ActiveReport = active.component;
 
@@ -62,7 +86,7 @@ export default function ReportsDashboard() {
       <div className="mb-6">
         <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Reports</h2>
         <p className="text-arkalon-grey text-sm font-opensans mt-0.5">
-          Pipeline intelligence for ASC Technologies &amp; Simply Seated
+          Commission intelligence for ASC Technologies &amp; Simply Seated
         </p>
       </div>
 

@@ -5,7 +5,7 @@ import Badge from '../../components/UI/Badge.jsx';
 import { dealsApi } from '../../api/deals.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
 import { formatDate, formatLocalDatetime } from '../../utils/formatDate.js';
-import { exportToXlsx } from '../../utils/exportCsv.js';
+import { exportToCsv } from '../../utils/exportCsv.js';
 import { STAGE_COLOURS } from '../../utils/constants.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ReportShell, ReportLoading, ReportEmpty, ExportButton, FilterField, PillGroup, BuFilter, BU_COLOURS } from './reportPrimitives.jsx';
@@ -62,7 +62,7 @@ export default function StaleDealsReport() {
   return (
     <ReportShell
       filters={filters}
-      action={<ExportButton onClick={() => exportToXlsx('stale_deals', deals || [], CSV_COLUMNS)} disabled={!deals || deals.length === 0} />}
+      action={<ExportButton onClick={() => exportToCsv('stale_deals', deals || [], CSV_COLUMNS)} disabled={!deals || deals.length === 0} />}
     >
       {deals === null ? (
         <ReportLoading />
@@ -106,7 +106,7 @@ export default function StaleDealsReport() {
                   </Td>
                   <Td>{formatDate(d.close_date)}</Td>
                   <Td>
-                    <span className="font-bold" style={{ color: '#0073C6' }}>{formatCurrency(d.total_contract_earnings)}</span>
+                    <span className="font-bold" style={{ color: '#0073C6' }}>{formatCurrency(d.total_contract_earnings, 2)}</span>
                   </Td>
                   <Td className={neverTouched ? 'text-red-600 font-semibold' : ''}>{lastTouchLabel(d)}</Td>
                   <Td>

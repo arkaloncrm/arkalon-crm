@@ -4,7 +4,7 @@ import { Phone, Calendar, Mail, Linkedin, Monitor, Activity, AlertCircle, CheckC
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import { reportsApi } from '../../api/reports.js';
-import { exportToXlsx } from '../../utils/exportCsv.js';
+import { exportToCsv } from '../../utils/exportCsv.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ReportShell, ReportLoading, ReportEmpty, ExportButton, FilterField, PillGroup, BuFilter, BU_COLOURS } from './reportPrimitives.jsx';
 
@@ -72,7 +72,7 @@ export default function ActivitySummaryReport() {
             {filters}
           </div>
         }
-        action={<ExportButton onClick={() => exportToXlsx('activity_summary', byType, CSV_COLUMNS)} disabled={byType.length === 0} />}
+        action={<ExportButton onClick={() => exportToCsv('activity_summary', byType, CSV_COLUMNS)} disabled={byType.length === 0} />}
       >
         {data === null ? (
           <ReportLoading />

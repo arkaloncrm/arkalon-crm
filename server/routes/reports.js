@@ -210,4 +210,152 @@ router.get('/activity-summary', async (req, res) => {
   }
 });
 
+// --- Commission reports -----------------------------------------------------
+// Commission is read straight from deals.total_contract_earnings, which the
+// deal POST/PUT routes compute via calculateDealFinancials (override → line
+// items → BU default rate). Reports never re-derive it and never weight it by
+// probability. close_date is a pure DATE — Sydney boundary strings are compared
+// directly, with no UTC conversion (converting would shift Sydney midnight to
+// the previous UTC day and drop deals on the boundary date).
+
+// GET /api/reports/commission-earned — Report 1: Closed Won this calendar month
+router.get('/commission-earned', async (req, res) => {
+  try {
+    const now = DateTime.now().setZone('Australia/Sydney');
+    const monthStart = now.startOf('month').toISODate();
+    const monthEnd = now.endOf('month').toISODate();
+
+    const { rows: deals } = await pool.query(P(`
+      SELECT
+        deals.id,
+        deals.deal_name,
+        deals.business_unit,
+        deals.close_date,
+        deals.gross_total_value,
+        deals.total_contract_earnings,
+        accounts.name AS account_name
+      FROM deals
+      LEFT JOIN accounts ON deals.account_id = accounts.id
+      WHERE deals.stage = 'Closed Won'
+        AND deals.close_date IS NOT NULL
+        AND deals.close_date >= ?
+        AND deals.close_date <= ?
+      ORDER BY deals.close_date ASC
+    `), [monthStart, monthEnd]);
+
+    res.json({ success: true, data: { deals, month_label: now.toFormat('LLLL yyyy') } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/reports/commission-forecast — Report 2: open deals closing this quarter
+router.get('/commission-forecast', async (req, res) => {
+  try {
+    const now = DateTime.now().setZone('Australia/Sydney');
+    const quarterStart = now.startOf('quarter').toISODate();
+    const quarterEnd = now.endOf('quarter').toISODate();
+
+    const { rows: deals } = await pool.query(P(`
+      SELECT
+        deals.id,
+        deals.deal_name,
+        deals.business_unit,
+        deals.stage,
+        deals.close_date,
+        deals.gross_total_value,
+        deals.total_contract_earnings,
+        accounts.name AS account_name
+      FROM deals
+      LEFT JOIN accounts ON deals.account_id = accounts.id
+      WHERE deals.stage NOT IN ('Closed Won', 'Closed Lost')
+        AND deals.close_date IS NOT NULL
+        AND deals.close_date >= ?
+        AND deals.close_date <= ?
+      ORDER BY deals.close_date ASC
+    `), [quarterStart, quarterEnd]);
+
+    res.json({ success: true, data: { deals, quarter_label: `Q${now.quarter} ${now.year}` } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/reports/bu-split — Report 4: ASC vs Simply Seated commission split
+router.get('/bu-split', async (req, res) => {
+  try {
+    const now = DateTime.now().setZone('Australia/Sydney');
+    const yearStart = now.startOf('year').toISODate();
+    const yearEnd = now.endOf('year').toISODate();
+
+    const { rows: openRows } = await pool.query(`
+      SELECT
+        business_unit,
+        COUNT(*) AS open_count,
+        COALESCE(SUM(total_contract_earnings), 0) AS pipeline_commission
+      FROM deals
+      WHERE stage NOT IN ('Closed Won', 'Closed Lost')
+        AND business_unit IS NOT NULL
+      GROUP BY business_unit
+    `);
+
+    const { rows: closedRows } = await pool.query(P(`
+      SELECT
+        business_unit,
+        COALESCE(SUM(total_contract_earnings), 0) AS closed_commission
+      FROM deals
+      WHERE stage = 'Closed Won'
+        AND business_unit IS NOT NULL
+        AND close_date >= ?
+        AND close_date <= ?
+      GROUP BY business_unit
+    `), [yearStart, yearEnd]);
+
+    const blank = () => ({ open_count: 0, pipeline_commission: 0, closed_commission: 0 });
+    const split = { 'ASC': blank(), 'Simply Seated': blank() };
+    for (const row of openRows) {
+      if (split[row.business_unit]) {
+        split[row.business_unit].open_count = row.open_count;
+        split[row.business_unit].pipeline_commission = row.pipeline_commission;
+      }
+    }
+    for (const row of closedRows) {
+      if (split[row.business_unit]) {
+        split[row.business_unit].closed_commission = row.closed_commission;
+      }
+    }
+
+    res.json({ success: true, data: { split, year: now.year } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/reports/commission-by-deal — Report 6: every deal, open + closed.
+// Deliberately unbounded — the /api/deals list caps at 100 rows, which would
+// silently truncate this report. Sorting and filtering happen client-side.
+router.get('/commission-by-deal', async (req, res) => {
+  try {
+    const { rows: deals } = await pool.query(`
+      SELECT
+        deals.id,
+        deals.deal_name,
+        deals.business_unit,
+        deals.stage,
+        deals.close_date,
+        deals.gross_total_value,
+        deals.commission_percentage,
+        deals.commission_override_amount,
+        deals.total_contract_earnings,
+        accounts.name AS account_name
+      FROM deals
+      LEFT JOIN accounts ON deals.account_id = accounts.id
+      ORDER BY deals.close_date ASC NULLS LAST
+    `);
+    res.json({ success: true, data: deals });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

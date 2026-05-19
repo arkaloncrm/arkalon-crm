@@ -55,7 +55,7 @@ export function ExportButton({ onClick, disabled }) {
       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-montserrat font-semibold rounded border border-arkalon-lightgrey bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
       <Download className="w-3.5 h-3.5" />
-      Export Excel
+      Export CSV
     </button>
   );
 }

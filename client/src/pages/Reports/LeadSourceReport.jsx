@@ -3,7 +3,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import { reportsApi } from '../../api/reports.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
-import { exportToXlsx } from '../../utils/exportCsv.js';
+import { exportToCsv } from '../../utils/exportCsv.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ReportShell, ReportLoading, ReportEmpty, ExportButton, FilterField, BuFilter, BU_COLOURS } from './reportPrimitives.jsx';
 
@@ -48,7 +48,7 @@ export default function LeadSourceReport() {
           <BuFilter value={bu} onChange={setBu} />
         </FilterField>
       }
-      action={<ExportButton onClick={() => exportToXlsx('lead_source_performance', rows || [], CSV_COLUMNS)} disabled={!rows || rows.length === 0} />}
+      action={<ExportButton onClick={() => exportToCsv('lead_source_performance', rows || [], CSV_COLUMNS)} disabled={!rows || rows.length === 0} />}
     >
       {rows === null ? (
         <ReportLoading />
@@ -83,7 +83,7 @@ export default function LeadSourceReport() {
                 </Td>
                 <Td>{r.deal_count}</Td>
                 <Td>
-                  <span className="font-bold" style={{ color: '#0073C6' }}>{formatCurrency(r.total_commission)}</span>
+                  <span className="font-bold" style={{ color: '#0073C6' }}>{formatCurrency(r.total_commission, 2)}</span>
                 </Td>
               </Tr>
             ))}
@@ -95,7 +95,7 @@ export default function LeadSourceReport() {
               <Td className="font-semibold">{overallConv}%</Td>
               <Td className="font-semibold">{totals.deals}</Td>
               <Td className="font-bold">
-                <span style={{ color: '#0073C6' }}>{formatCurrency(totals.commission)}</span>
+                <span style={{ color: '#0073C6' }}>{formatCurrency(totals.commission, 2)}</span>
               </Td>
             </tr>
           </Tbody>
