@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
@@ -8,7 +8,7 @@ import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import { CardAction } from '../../components/UI/MobileCard.jsx';
 import SwipeableCard from '../../components/UI/SwipeableCard.jsx';
 import QuickNoteModal from '../../components/UI/QuickNoteModal.jsx';
-import { LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import { LinkedInLink, CallLogPanel, LogMessagePanel } from '../../components/UI/CommLinks.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
 import api from '../../api/axios.js';
@@ -98,6 +98,7 @@ export default function ContactsList() {
   const [openSwipeId, setOpenSwipeId] = useState(null);
   const [call, setCall] = useState(null);
   const [noteContact, setNoteContact] = useState(null);
+  const [logMessageRecord, setLogMessageRecord] = useState(null);
 
   useEffect(() => {
     accountsApi.getAll().then(res => setAccounts(res.data.data || [])).catch(() => {});
@@ -176,6 +177,7 @@ export default function ContactsList() {
     setCall({
       phone,
       name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+      email: contact.email,
       businessUnit: contact.business_unit,
       link: { contact_id: contact.id },
       timestamp: new Date().toISOString(),
@@ -282,6 +284,16 @@ export default function ContactsList() {
                       className="h-11 w-11 justify-center text-slate-400 hover:text-arkalon-blue hover:bg-slate-50 rounded"
                     />
                   )}
+                  <CardAction
+                    label="Log Message"
+                    onClick={() => setLogMessageRecord({
+                      name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+                      link: { contact_id: contact.id },
+                      businessUnit: contact.business_unit,
+                    })}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </CardAction>
                   <CardAction label="Edit" onClick={() => navigate(`/contacts/${contact.id}/edit`)}>
                     <Pencil className="w-4 h-4" />
                   </CardAction>
@@ -384,6 +396,10 @@ export default function ContactsList() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+      <LogMessagePanel
+        record={logMessageRecord}
+        onClose={() => setLogMessageRecord(null)}
+      />
       <QuickNoteModal
         open={!!noteContact}
         onClose={() => setNoteContact(null)}

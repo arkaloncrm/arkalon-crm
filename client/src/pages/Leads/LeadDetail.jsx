@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, RefreshCw, Plus, X } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, RefreshCw, Plus, X, MessageSquare } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import Modal from '../../components/UI/Modal.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
-import { PhoneLink, EmailLink, LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import { PhoneLink, EmailLink, LinkedInLink, CallLogPanel, LogMessagePanel } from '../../components/UI/CommLinks.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { accountsApi } from '../../api/accounts.js';
 import { notesApi } from '../../api/notes.js';
@@ -282,6 +282,7 @@ export default function LeadDetail() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [call, setCall] = useState(null);
+  const [logMessageRecord, setLogMessageRecord] = useState(null);
 
   const fetchLead = () => {
     setLoading(true);
@@ -324,6 +325,7 @@ export default function LeadDetail() {
   const handleCall = (phone) => setCall({
     phone,
     name: fullName || lead.company,
+    email: lead.email,
     businessUnit: lead.business_unit,
     link: { lead_id: Number(id) },
     timestamp: new Date().toISOString(),
@@ -340,7 +342,18 @@ export default function LeadDetail() {
           <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl">{fullName || lead.company}</h2>
           <p className="text-slate-500 font-opensans text-sm mt-0.5">{lead.company}</p>
         </div>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setLogMessageRecord({
+              name: fullName || lead.company,
+              link: { lead_id: Number(id) },
+              businessUnit: lead.business_unit,
+            })}
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> Log Message
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/leads/${id}/edit`)}>
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Button>
@@ -483,6 +496,11 @@ export default function LeadDetail() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+
+      <LogMessagePanel
+        record={logMessageRecord}
+        onClose={() => setLogMessageRecord(null)}
+      />
     </div>
   );
 }

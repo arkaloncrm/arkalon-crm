@@ -228,9 +228,10 @@ export default function DealDetail() {
 
   const isASC = deal.business_unit === 'ASC';
 
-  const handleCall = (phone, contactName) => setCall({
+  const handleCall = (phone, contactName, email) => setCall({
     phone,
     name: contactName,
+    email,
     businessUnit: deal.business_unit,
     link: { deal_id: Number(id) },
     timestamp: new Date().toISOString(),
@@ -469,6 +470,7 @@ export default function DealDetail() {
                             onCall={() => handleCall(
                               contact.phone,
                               contact.full_name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+                              contact.email,
                             )}
                             className="text-xs font-opensans"
                           />

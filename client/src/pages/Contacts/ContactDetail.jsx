@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, Plus, X, Calendar } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Plus, X, Calendar, MessageSquare } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
 import MeetingBrief from '../../components/UI/MeetingBrief.jsx';
-import { PhoneLink, EmailLink, LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import { PhoneLink, EmailLink, LinkedInLink, CallLogPanel, LogMessagePanel } from '../../components/UI/CommLinks.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { notesApi } from '../../api/notes.js';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
@@ -103,6 +103,7 @@ export default function ContactDetail() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [call, setCall] = useState(null);
   const [showBrief, setShowBrief] = useState(false);
+  const [logMessageRecord, setLogMessageRecord] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -133,6 +134,7 @@ export default function ContactDetail() {
   const handleCall = (phone) => setCall({
     phone,
     name: fullName,
+    email: contact.email,
     businessUnit: contact.business_unit,
     link: { contact_id: Number(id) },
     timestamp: new Date().toISOString(),
@@ -151,6 +153,17 @@ export default function ContactDetail() {
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Button variant="secondary" size="sm" onClick={() => setShowBrief(true)}>
             <Calendar className="w-3.5 h-3.5" /> Pre-Meeting Brief
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setLogMessageRecord({
+              name: fullName,
+              link: { contact_id: Number(id) },
+              businessUnit: contact.business_unit,
+            })}
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> Log Message
           </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/contacts/${id}/edit`)}>
             <Pencil className="w-3.5 h-3.5" /> Edit
@@ -285,6 +298,11 @@ export default function ContactDetail() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+
+      <LogMessagePanel
+        record={logMessageRecord}
+        onClose={() => setLogMessageRecord(null)}
+      />
 
       <MeetingBrief
         open={showBrief}

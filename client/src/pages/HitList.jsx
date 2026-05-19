@@ -175,10 +175,11 @@ export default function HitList() {
     return null;
   };
 
-  const handleCall = (t, phone, link) => {
+  const handleCall = (t, phone, link, email) => {
     setCall({
       phone,
       name: linkedName(t),
+      email,
       businessUnit: t.business_unit,
       link: link || {},
       timestamp: new Date().toISOString(),
@@ -237,7 +238,7 @@ export default function HitList() {
         </div>
         <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1">
           {comms.phone && (
-            <ActionButton label="Call" tone="green" onClick={() => handleCall(t, comms.phone, comms.link)}>
+            <ActionButton label="Call" tone="green" onClick={() => handleCall(t, comms.phone, comms.link, comms.email)}>
               <Phone className="w-4 h-4" />
             </ActionButton>
           )}

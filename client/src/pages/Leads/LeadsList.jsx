@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { List, LayoutGrid, Pencil, Trash2, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
+import { List, LayoutGrid, Pencil, Trash2, RefreshCw, ChevronUp, ChevronDown, MessageSquare } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
@@ -8,7 +8,7 @@ import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import { CardAction } from '../../components/UI/MobileCard.jsx';
 import SwipeableCard from '../../components/UI/SwipeableCard.jsx';
 import QuickNoteModal from '../../components/UI/QuickNoteModal.jsx';
-import { LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import { LinkedInLink, CallLogPanel, LogMessagePanel } from '../../components/UI/CommLinks.jsx';
 import LeadKanban from './LeadKanban.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -83,6 +83,7 @@ export default function LeadsList() {
 
   const [openSwipeId, setOpenSwipeId] = useState(null);
   const [call, setCall] = useState(null);
+  const [logMessageRecord, setLogMessageRecord] = useState(null);
   const [noteLead, setNoteLead] = useState(null);
 
   const fetchLeads = useCallback(() => {
@@ -149,6 +150,7 @@ export default function LeadsList() {
     setCall({
       phone,
       name: [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.company,
+      email: lead.email,
       businessUnit: lead.business_unit,
       link: { lead_id: lead.id },
       timestamp: new Date().toISOString(),
@@ -312,6 +314,16 @@ export default function LeadsList() {
                             className="h-11 w-11 justify-center text-slate-400 hover:text-arkalon-blue hover:bg-slate-50 rounded"
                           />
                         )}
+                        <CardAction
+                          label="Log Message"
+                          onClick={() => setLogMessageRecord({
+                            name: [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.company,
+                            link: { lead_id: lead.id },
+                            businessUnit: lead.business_unit,
+                          })}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </CardAction>
                         <CardAction label="Edit" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
                           <Pencil className="w-4 h-4" />
                         </CardAction>
@@ -466,6 +478,10 @@ export default function LeadsList() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+      <LogMessagePanel
+        record={logMessageRecord}
+        onClose={() => setLogMessageRecord(null)}
+      />
       <QuickNoteModal
         open={!!noteLead}
         onClose={() => setNoteLead(null)}
