@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowRight, ArrowLeft, Check, Trash2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Trash2 } from 'lucide-react';
 import { myDayApi } from '../../api/myDay.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import './MyDayPage.css';
@@ -137,15 +137,6 @@ function TaskRow({ item, onToggle, onPush, onRequestDelete }) {
       onTouchEnd={handleTouchEnd}
       onTouchCancel={reset}
     >
-      <button
-        type="button"
-        className={`myday-circle${done ? ' is-done' : ''}`}
-        onClick={guardedToggle}
-        aria-label={done ? 'Mark as not done' : 'Mark as done'}
-      >
-        {done && <Check size={16} strokeWidth={3.5} />}
-      </button>
-
       <span className={`myday-text${done ? ' is-done' : ''}`} onClick={guardedToggle}>
         {item.title}
       </span>
@@ -166,7 +157,28 @@ function TaskRow({ item, onToggle, onPush, onRequestDelete }) {
         onClick={() => onPush(item)}
         aria-label={isToday ? 'Push to tomorrow' : 'Pull back to today'}
       >
-        {isToday ? <ArrowRight size={22} /> : <ArrowLeft size={22} />}
+        <svg
+          width="28"
+          height="20"
+          viewBox="0 0 28 20"
+          fill="none"
+          style={{ opacity: 0.8, transform: isToday ? undefined : 'scaleX(-1)' }}
+        >
+          <path
+            d="M2 10 C8 9, 16 8, 22 10"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            fill="none"
+          />
+          <path
+            d="M19 6 C21 8, 23 9.5, 22 10 C21 10.5, 19 11, 18 14"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
       </button>
     </div>
   );
