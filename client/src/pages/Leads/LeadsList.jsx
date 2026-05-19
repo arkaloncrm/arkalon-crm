@@ -5,7 +5,10 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
-import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
+import { CardAction } from '../../components/UI/MobileCard.jsx';
+import SwipeableCard from '../../components/UI/SwipeableCard.jsx';
+import QuickNoteModal from '../../components/UI/QuickNoteModal.jsx';
+import { LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import LeadKanban from './LeadKanban.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -78,6 +81,10 @@ export default function LeadsList() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  const [openSwipeId, setOpenSwipeId] = useState(null);
+  const [call, setCall] = useState(null);
+  const [noteLead, setNoteLead] = useState(null);
+
   const fetchLeads = useCallback(() => {
     setLoading(true);
     const params = { converted: 0, sort_by: sortBy, sort_dir: sortDir };
@@ -130,6 +137,22 @@ export default function LeadsList() {
     if (failed === 0) addToast(`${deleted} record(s) deleted`, 'success');
     else if (deleted === 0) addToast(`Could not delete ${failed} record(s)`, 'error');
     else addToast(`${deleted} deleted · ${failed} could not be deleted`, 'error');
+  };
+
+  // Swipe-right Call action — reuses the shared click-to-call logging panel.
+  const handleSwipeCall = (lead) => {
+    const phone = lead.phone || lead.mobile;
+    if (!phone) {
+      addToast('No phone number on record', 'error');
+      return;
+    }
+    setCall({
+      phone,
+      name: [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.company,
+      businessUnit: lead.business_unit,
+      link: { lead_id: lead.id },
+      timestamp: new Date().toISOString(),
+    });
   };
 
   const filtersActive = buFilter || statusFilter || priorityFilter || search;
@@ -243,10 +266,18 @@ export default function LeadsList() {
             </div>
           ) : (
             <>
-              {/* Mobile: stacked cards */}
+              {/* Mobile: swipeable stacked cards — swipe right to Call, left to Note */}
               <div className="sm:hidden space-y-3">
                 {paginated.map(lead => (
-                  <MobileCard key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)}>
+                  <SwipeableCard
+                    key={lead.id}
+                    swipeId={lead.id}
+                    openId={openSwipeId}
+                    setOpenId={setOpenSwipeId}
+                    onClick={() => navigate(`/leads/${lead.id}`)}
+                    onCall={() => handleSwipeCall(lead)}
+                    onNote={() => setNoteLead(lead)}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <span className={`font-semibold font-opensans text-sm truncate ${lead.converted ? 'line-through text-slate-400' : 'text-arkalon-blue'}`}>
                         {lead.company}
@@ -275,6 +306,12 @@ export default function LeadsList() {
                         {lead.lead_source || 'No source'} · {formatRelative(lead.updated_at)}
                       </span>
                       <div className="flex items-center gap-1 flex-shrink-0">
+                        {lead.linkedin_url && (
+                          <LinkedInLink
+                            url={lead.linkedin_url}
+                            className="h-11 w-11 justify-center text-slate-400 hover:text-arkalon-blue hover:bg-slate-50 rounded"
+                          />
+                        )}
                         <CardAction label="Edit" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
                           <Pencil className="w-4 h-4" />
                         </CardAction>
@@ -283,7 +320,7 @@ export default function LeadsList() {
                         </CardAction>
                       </div>
                     </div>
-                  </MobileCard>
+                  </SwipeableCard>
                 ))}
               </div>
               {/* Desktop: table */}
@@ -426,6 +463,14 @@ export default function LeadsList() {
         title="Delete Lead?"
         message={`Delete "${deleteTarget?.company}"? This action cannot be undone.`}
         loading={deleteLoading}
+      />
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
+      <QuickNoteModal
+        open={!!noteLead}
+        onClose={() => setNoteLead(null)}
+        parent={noteLead ? { lead_id: noteLead.id } : undefined}
+        recordName={noteLead?.company || ''}
       />
     </div>
   );

@@ -7,7 +7,7 @@ import {
 import StatCard from '../components/UI/StatCard.jsx';
 import Badge from '../components/UI/Badge.jsx';
 import DashboardCharts from '../components/Dashboard/DashboardCharts.jsx';
-import { formatCurrencyCompact } from '../utils/formatCurrency.js';
+import { formatCurrency, formatCurrencyCompact } from '../utils/formatCurrency.js';
 import { formatRelative, formatLocalDatetime, formatDate } from '../utils/formatDate.js';
 import api from '../api/axios.js';
 import { leadsApi } from '../api/leads.js';
@@ -52,6 +52,30 @@ function isOverdue(task) {
   return new Date(iso) < new Date();
 }
 
+// Weighted commission per deal = total_contract_earnings (Stuart's earnings)
+// × probability. Bucketed by close_date into the current month / quarter / year.
+// Closed Lost deals are excluded (open_only already drops them; guarded here too).
+function computeCommission(deals) {
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+  const curQuarter = Math.floor(curMonth / 3);
+  let month = 0, quarter = 0, year = 0;
+  for (const d of deals) {
+    if (d.stage === 'Closed Lost' || !d.close_date) continue;
+    const parts = String(d.close_date).slice(0, 10).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) continue;
+    const [y, m] = parts;
+    if (y !== curYear) continue;
+    const mIdx = m - 1;
+    const weighted = (Number(d.total_contract_earnings) || 0) * (Number(d.probability) || 0) / 100;
+    year += weighted;
+    if (Math.floor(mIdx / 3) === curQuarter) quarter += weighted;
+    if (mIdx === curMonth) month += weighted;
+  }
+  return { month, quarter, year };
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
@@ -60,6 +84,7 @@ export default function Dashboard() {
   const [recentActivities, setRecentActivities] = useState([]);
   const [topOpenDeals, setTopOpenDeals] = useState([]);
   const [dealSummary, setDealSummary] = useState(null);
+  const [commission, setCommission] = useState({ month: 0, quarter: 0, year: 0 });
 
   useEffect(() => {
     api.get('/reports/summary')
@@ -97,8 +122,33 @@ export default function Dashboard() {
       .catch(() => setDealSummary(null));
   }, []);
 
+  useEffect(() => {
+    dealsApi.getAll({ open_only: 'true', limit: 100 })
+      .then(res => setCommission(computeCommission(res.data.data || [])))
+      .catch(() => setCommission({ month: 0, quarter: 0, year: 0 }));
+  }, []);
+
   return (
     <div>
+      {/* Commission Pipeline — weighted commission from open deals by close date */}
+      <div className="bg-arkalon-navy rounded-lg px-5 py-4 mb-6 text-white">
+        <div className="text-[11px] font-montserrat font-bold uppercase tracking-[0.2em] text-white/50 mb-3">
+          My Commission Pipeline
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/15">
+          {[
+            { label: 'This Month', value: commission.month },
+            { label: 'This Quarter', value: commission.quarter },
+            { label: 'This Year', value: commission.year },
+          ].map(c => (
+            <div key={c.label} className="py-3 sm:py-0 sm:px-5 sm:first:pl-0 sm:last:pr-0">
+              <div className="text-xs font-montserrat font-semibold uppercase tracking-wide text-white/60">{c.label}</div>
+              <div className="text-2xl sm:text-3xl font-montserrat font-bold mt-0.5">{formatCurrency(c.value, 2)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-6">
         <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Welcome back, Stuart</h2>
         <p className="text-arkalon-grey text-sm font-opensans mt-0.5">Here's your pipeline at a glance.</p>

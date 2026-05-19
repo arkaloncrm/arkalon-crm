@@ -6,7 +6,7 @@ import Badge from '../../components/UI/Badge.jsx';
 import Modal from '../../components/UI/Modal.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
-import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import { PhoneLink, EmailLink, LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { leadsApi } from '../../api/leads.js';
 import { accountsApi } from '../../api/accounts.js';
 import { notesApi } from '../../api/notes.js';
@@ -412,6 +412,9 @@ export default function LeadDetail() {
           <FieldRow label="Phone" value={<PhoneLink phone={lead.phone} onCall={handleCall} />} />
           <FieldRow label="Mobile" value={<PhoneLink phone={lead.mobile} onCall={handleCall} />} />
           <FieldRow label="Website" value={lead.website} />
+          {lead.linkedin_url && (
+            <FieldRow label="LinkedIn" value={<LinkedInLink url={lead.linkedin_url} showText />} />
+          )}
           <FieldRow label="Lead Source" value={lead.lead_source} />
           <FieldRow label="Lead Status" value={lead.lead_status} />
           <FieldRow label="Business Unit" value={lead.business_unit} />

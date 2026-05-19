@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, Phone, Mail } from 'lucide-react';
+import { Pencil, Trash2, Phone, Mail, Calendar } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
+import MeetingBrief from '../../components/UI/MeetingBrief.jsx';
 import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import DealContactRoles from './DealContactRoles.jsx';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
@@ -176,6 +177,7 @@ export default function DealDetail() {
   const [stageChanging, setStageChanging] = useState(false);
   const [selectedStage, setSelectedStage] = useState('');
   const [call, setCall] = useState(null);
+  const [showBrief, setShowBrief] = useState(false);
 
   const loadDeal = () => {
     setLoading(true);
@@ -256,7 +258,10 @@ export default function DealDetail() {
             <Badge className={BU_COLOURS[deal.business_unit] || 'bg-gray-100 text-gray-600'}>{deal.business_unit}</Badge>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4 flex-wrap">
+          <Button variant="secondary" size="sm" onClick={() => setShowBrief(true)}>
+            <Calendar className="w-3.5 h-3.5" /> Pre-Meeting Brief
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/deals/${id}/edit`)}>
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Button>
@@ -523,6 +528,14 @@ export default function DealDetail() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+
+      <MeetingBrief
+        open={showBrief}
+        onClose={() => setShowBrief(false)}
+        entityType="deal"
+        entity={deal}
+        onCall={(phone, name) => handleCall(phone, name)}
+      />
     </div>
   );
 }

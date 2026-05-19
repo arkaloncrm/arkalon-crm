@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, Plus, X } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Plus, X, Calendar } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
-import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import MeetingBrief from '../../components/UI/MeetingBrief.jsx';
+import { PhoneLink, EmailLink, LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { notesApi } from '../../api/notes.js';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
@@ -101,6 +102,7 @@ export default function ContactDetail() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [call, setCall] = useState(null);
+  const [showBrief, setShowBrief] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -146,7 +148,10 @@ export default function ContactDetail() {
           <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl">{fullName}</h2>
           {contact.title && <p className="text-slate-500 font-opensans text-sm mt-0.5">{contact.title}</p>}
         </div>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <Button variant="secondary" size="sm" onClick={() => setShowBrief(true)}>
+            <Calendar className="w-3.5 h-3.5" /> Pre-Meeting Brief
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/contacts/${id}/edit`)}>
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Button>
@@ -206,7 +211,7 @@ export default function ContactDetail() {
           <FieldRow label="Email" value={<EmailLink email={contact.email} refName={contact.account_name || fullName} />} />
           <FieldRow label="Phone" value={<PhoneLink phone={contact.phone} onCall={handleCall} />} />
           <FieldRow label="Mobile" value={<PhoneLink phone={contact.mobile} onCall={handleCall} />} />
-          <FieldRow label="LinkedIn" value={contact.linkedin_url} />
+          <FieldRow label="LinkedIn" value={<LinkedInLink url={contact.linkedin_url} showText />} />
           <FieldRow label="Department" value={contact.department} />
           <FieldRow label="Business Unit" value={contact.business_unit} />
         </SectionCard>
@@ -280,6 +285,14 @@ export default function ContactDetail() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+
+      <MeetingBrief
+        open={showBrief}
+        onClose={() => setShowBrief(false)}
+        entityType="contact"
+        entity={contact}
+        onCall={(phone) => handleCall(phone)}
+      />
     </div>
   );
 }

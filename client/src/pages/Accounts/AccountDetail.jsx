@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, ExternalLink, Plus, X } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, ExternalLink, Plus, X, Calendar } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
-import { PhoneLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
+import MeetingBrief from '../../components/UI/MeetingBrief.jsx';
+import { PhoneLink, LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { accountsApi } from '../../api/accounts.js';
 import { notesApi } from '../../api/notes.js';
 import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedTab.jsx';
@@ -101,6 +102,7 @@ export default function AccountDetail() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [call, setCall] = useState(null);
+  const [showBrief, setShowBrief] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -144,7 +146,10 @@ export default function AccountDetail() {
           <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl">{account.name}</h2>
           {account.industry && <p className="text-slate-500 font-opensans text-sm mt-0.5">{account.industry}</p>}
         </div>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <Button variant="secondary" size="sm" onClick={() => setShowBrief(true)}>
+            <Calendar className="w-3.5 h-3.5" /> Pre-Meeting Brief
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/accounts/${id}/edit`)}>
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Button>
@@ -209,6 +214,9 @@ export default function AccountDetail() {
         <SectionCard title="Account Information">
           <FieldRow label="Account Name" value={account.name} />
           <FieldRow label="Website" value={account.website} />
+          {account.linkedin_url && (
+            <FieldRow label="LinkedIn" value={<LinkedInLink url={account.linkedin_url} showText />} />
+          )}
           <FieldRow label="Industry" value={account.industry} />
           <FieldRow label="Employee Count" value={account.employee_count} />
           <FieldRow label="Annual Revenue" value={account.annual_revenue ? formatCurrency(account.annual_revenue) : null} />
@@ -342,6 +350,14 @@ export default function AccountDetail() {
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
+
+      <MeetingBrief
+        open={showBrief}
+        onClose={() => setShowBrief(false)}
+        entityType="account"
+        entity={account}
+        onCall={(phone) => handleCall(phone)}
+      />
     </div>
   );
 }

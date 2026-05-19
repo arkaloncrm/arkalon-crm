@@ -5,7 +5,10 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
-import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
+import { CardAction } from '../../components/UI/MobileCard.jsx';
+import SwipeableCard from '../../components/UI/SwipeableCard.jsx';
+import QuickNoteModal from '../../components/UI/QuickNoteModal.jsx';
+import { LinkedInLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
 import api from '../../api/axios.js';
@@ -92,6 +95,10 @@ export default function ContactsList() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  const [openSwipeId, setOpenSwipeId] = useState(null);
+  const [call, setCall] = useState(null);
+  const [noteContact, setNoteContact] = useState(null);
+
   useEffect(() => {
     accountsApi.getAll().then(res => setAccounts(res.data.data || [])).catch(() => {});
   }, []);
@@ -155,6 +162,22 @@ export default function ContactsList() {
       setContacts(snapshot);
       addToast(err.response?.data?.error || 'Failed to update contact', 'error');
     }
+  };
+
+  // Swipe-right Call action — reuses the shared click-to-call logging panel.
+  const handleSwipeCall = (contact) => {
+    const phone = contact.phone || contact.mobile;
+    if (!phone) {
+      addToast('No phone number on record', 'error');
+      return;
+    }
+    setCall({
+      phone,
+      name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+      businessUnit: contact.business_unit,
+      link: { contact_id: contact.id },
+      timestamp: new Date().toISOString(),
+    });
   };
 
   const filtersActive = buFilter || accountFilter || search;
@@ -221,10 +244,18 @@ export default function ContactsList() {
         </div>
       ) : (
         <>
-          {/* Mobile: stacked cards */}
+          {/* Mobile: swipeable stacked cards — swipe right to Call, left to Note */}
           <div className="sm:hidden space-y-3">
             {paginated.map(contact => (
-              <MobileCard key={contact.id} onClick={() => navigate(`/contacts/${contact.id}`)}>
+              <SwipeableCard
+                key={contact.id}
+                swipeId={contact.id}
+                openId={openSwipeId}
+                setOpenId={setOpenSwipeId}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+                onCall={() => handleSwipeCall(contact)}
+                onNote={() => setNoteContact(contact)}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">
                     {contact.first_name} {contact.last_name}
@@ -243,6 +274,12 @@ export default function ContactsList() {
                   <div className="text-xs text-slate-500 font-opensans truncate">{contact.phone || '—'}</div>
                 </div>
                 <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
+                  {contact.linkedin_url && (
+                    <LinkedInLink
+                      url={contact.linkedin_url}
+                      className="h-11 w-11 justify-center text-slate-400 hover:text-arkalon-blue hover:bg-slate-50 rounded"
+                    />
+                  )}
                   <CardAction label="Edit" onClick={() => navigate(`/contacts/${contact.id}/edit`)}>
                     <Pencil className="w-4 h-4" />
                   </CardAction>
@@ -250,7 +287,7 @@ export default function ContactsList() {
                     <Trash2 className="w-4 h-4" />
                   </CardAction>
                 </div>
-              </MobileCard>
+              </SwipeableCard>
             ))}
           </div>
           {/* Desktop: table */}
@@ -342,6 +379,14 @@ export default function ContactsList() {
         title="Delete Contact?"
         message={`Delete "${deleteTarget?.first_name} ${deleteTarget?.last_name}"? This action cannot be undone.`}
         loading={deleteLoading}
+      />
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
+      <QuickNoteModal
+        open={!!noteContact}
+        onClose={() => setNoteContact(null)}
+        parent={noteContact ? { contact_id: noteContact.id } : undefined}
+        recordName={noteContact ? `${noteContact.first_name || ''} ${noteContact.last_name || ''}`.trim() : ''}
       />
     </div>
   );

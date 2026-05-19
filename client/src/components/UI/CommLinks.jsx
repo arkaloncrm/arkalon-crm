@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, X } from 'lucide-react';
+import { Phone, X, Linkedin } from 'lucide-react';
 import Button from './Button.jsx';
 import { activitiesApi } from '../../api/activities.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -33,6 +33,39 @@ export function EmailLink({ email, refName, className = '' }) {
       className={`text-arkalon-blue hover:underline ${className}`}
     >
       {email}
+    </a>
+  );
+}
+
+// Normalise a stored LinkedIn URL for safe external linking.
+//  - already has http:// or https:// → used as-is
+//  - starts with linkedin.com / www.linkedin.com (or any bare host) → https:// prepended
+//  - empty / missing → null, so callers hide the link entirely
+export function normaliseLinkedInUrl(url) {
+  if (!url) return null;
+  const trimmed = String(url).trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, '')}`;
+}
+
+// One-tap external LinkedIn link. Renders nothing when no URL is on record so
+// it can be dropped into any layout without leaving a dead control behind.
+export function LinkedInLink({ url, showText = false, className = '' }) {
+  const href = normaliseLinkedInUrl(url);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      aria-label="Open LinkedIn profile"
+      title="Open LinkedIn profile"
+      className={`inline-flex items-center gap-1 text-arkalon-blue hover:underline ${className}`}
+    >
+      <Linkedin className="w-4 h-4 flex-shrink-0" />
+      {showText && <span>View LinkedIn profile</span>}
     </a>
   );
 }

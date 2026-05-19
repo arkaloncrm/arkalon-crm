@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, Trash2, CheckCircle, X, Archive, ChevronDown, Chevro
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import { LinkedInLink } from '../../components/UI/CommLinks.jsx';
 import { ConvertDropdown, RejectModal } from '../../components/ResearchQueue/ResearchQueueActions.jsx';
 import { researchQueueApi } from '../../api/researchQueue.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -258,7 +259,7 @@ export default function ResearchQueueDetail() {
           <FieldRow label="Phone" value={record.phone} />
           <FieldRow label="Mobile" value={record.mobile} />
           <FieldRow label="Website" value={record.website} />
-          <FieldRow label="LinkedIn" value={record.linkedin_url} />
+          <FieldRow label="LinkedIn" value={<LinkedInLink url={record.linkedin_url} showText />} />
           <FieldRow
             label="Business Unit"
             value={record.business_unit && (

@@ -4,11 +4,12 @@ import logoIcon from '../../assets/logo-icon.png';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Inbox, Users, User, Building2, Briefcase, Package,
-  Phone, CheckSquare, BarChart2, Settings, ChevronLeft, ChevronRight, X
+  Phone, CheckSquare, BarChart2, Settings, ChevronLeft, ChevronRight, X, Zap
 } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { label: "Today's List", icon: Zap, path: '/hit-list' },
   { label: 'Research Queue', icon: Inbox, path: '/research-queue' },
   { label: 'Leads', icon: Users, path: '/leads' },
   { label: 'Contacts', icon: User, path: '/contacts' },

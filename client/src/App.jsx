@@ -6,6 +6,7 @@ import AppLayout from './components/Layout/AppLayout.jsx';
 
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import HitList from './pages/HitList.jsx';
 
 import ResearchQueueList from './pages/ResearchQueue/ResearchQueueList.jsx';
 import ResearchQueueDetail from './pages/ResearchQueue/ResearchQueueDetail.jsx';
@@ -58,6 +59,7 @@ export default function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="hit-list" element={<HitList />} />
 
         <Route path="research-queue" element={<ResearchQueueList />} />
         <Route path="research-queue/new" element={<ResearchQueueForm />} />
