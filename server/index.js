@@ -25,6 +25,7 @@ const validationRouter = require('./routes/validation');
 const researchQueueRouter = require('./routes/researchQueue');
 const scanRouter = require('./routes/scan');
 const myDayRouter = require('./routes/myDay');
+const emailRouter = require('./routes/email');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,6 +37,7 @@ app.use(express.json({ limit: '5mb' }));
 // Public routes
 app.use('/api/auth', authRouter);
 app.use('/api/ai', aiIngestRouter);
+app.use('/api/email', emailRouter); // NO authMiddleware — Mailgun has no JWT
 
 // Protected routes — JWT required
 app.use('/api/leads', authMiddleware, leadsRouter);
