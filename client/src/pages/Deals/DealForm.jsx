@@ -312,7 +312,7 @@ export default function DealForm() {
             <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
               <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Deal Details</h3>
             </div>
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
 
               <div className="col-span-2">
                 <label className={labelCls}>Deal Name *</label>

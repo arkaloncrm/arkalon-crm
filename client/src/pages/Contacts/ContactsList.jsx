@@ -206,12 +206,12 @@ export default function ContactsList() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search contacts..."
-          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 w-56"
+          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 w-full sm:w-56"
         />
         <select
           value={buFilter}
           onChange={e => setBuFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 w-full sm:w-auto min-w-0 max-w-full"
         >
           <option value="">All Business Units</option>
           {BUSINESS_UNITS.map(bu => <option key={bu}>{bu}</option>)}
@@ -219,7 +219,7 @@ export default function ContactsList() {
         <select
           value={accountFilter}
           onChange={e => setAccountFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+          className="px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 w-full sm:w-auto min-w-0 max-w-full"
         >
           <option value="">All Accounts</option>
           {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
