@@ -214,6 +214,7 @@ export default function DealForm() {
       product_name: product.name,
       sku: product.sku || '',
       description: item.description || product.description || '',
+      quantity: (!item.quantity || Number(item.quantity) === 0) ? 1 : item.quantity,
       unit_price: product.unit_price,
       unit_type: product.unit_type || '',
       is_recurring: !!product.is_recurring,

@@ -376,6 +376,7 @@ const COLUMN_MIGRATIONS = [
   `ALTER TABLE accounts ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
   `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
   `ALTER TABLE deals ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT`,
 ];
 
 async function initDb() {

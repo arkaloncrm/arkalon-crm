@@ -155,6 +155,12 @@ export default function ProductForm() {
                 onChange={e => setField('name', e.target.value)} required />
             </div>
 
+            <div className="col-span-2">
+              <label className={labelCls}>Description</label>
+              <textarea rows={3} className={inputCls} value={form.description}
+                onChange={e => setField('description', e.target.value)} />
+            </div>
+
             <div>
               <label className={labelCls}>SKU *</label>
               <input className={`${inputCls} ${skuError ? 'border-red-400 ring-1 ring-red-200' : ''}`}
@@ -225,12 +231,6 @@ export default function ProductForm() {
                   className="rounded border-arkalon-lightgrey" />
                 <span className="text-sm font-opensans text-slate-700">Active</span>
               </label>
-            </div>
-
-            <div className="col-span-2">
-              <label className={labelCls}>Description</label>
-              <textarea rows={3} className={inputCls} value={form.description}
-                onChange={e => setField('description', e.target.value)} />
             </div>
 
             <div className="col-span-2">
