@@ -515,7 +515,7 @@ export default function DealForm() {
             <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
               <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Line Items</h3>
             </div>
-            <div className="p-4">
+            <div className="hidden sm:block p-4">
               {lineItems.length > 0 && (
                 <div className="overflow-x-auto mb-3">
                   <table className="w-full text-sm">
@@ -608,6 +608,40 @@ export default function DealForm() {
               <Button type="button" size="sm" variant="secondary" onClick={addLineItem}>
                 <Plus className="w-3 h-3" /> Add Line Item
               </Button>
+            </div>
+
+            {/* Mobile: quick-capture only — detailed line-item editing happens on desktop. */}
+            <div className="sm:hidden p-4 space-y-3">
+              {lineItems.length > 0 && (
+                <div className="space-y-2">
+                  {lineItems.map((item, idx) => {
+                    const qty = Number(item.quantity) || 0;
+                    const price = Number(item.unit_price) || 0;
+                    const lineTotal = r(qty * price);
+                    const desc = item.product_name || item.description || 'Line item';
+                    return (
+                      <div key={idx} className="flex items-start justify-between gap-3 border border-arkalon-lightgrey rounded p-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-opensans font-semibold text-slate-800 truncate">{desc}</div>
+                          <div className="text-xs text-slate-500 font-opensans mt-0.5">
+                            {qty} × {formatCurrency(price)}{item.is_recurring ? ' · Recurring' : ''}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span className="text-sm font-opensans font-semibold text-slate-800">{formatCurrency(lineTotal)}</span>
+                          <button type="button" onClick={() => removeLineItem(idx)}
+                            className="p-1 text-slate-300 hover:text-red-500 transition-colors" aria-label="Remove line item">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-slate-500 font-opensans">
+                Line items are best added on desktop. You can save this deal now and add products later.
+              </p>
             </div>
           </div>
 

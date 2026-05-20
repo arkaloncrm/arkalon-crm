@@ -3,3 +3,4 @@ server/*.db
 server/*.db-shm 
 server/*.db-wal 
 .claude/ 
+client/dist
