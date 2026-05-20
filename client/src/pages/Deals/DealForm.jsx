@@ -314,7 +314,7 @@ export default function DealForm() {
             </div>
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className={labelCls}>Deal Name *</label>
                 <input className={inputCls} value={form.deal_name}
                   onChange={e => setField('deal_name', e.target.value)} required />
@@ -447,7 +447,7 @@ export default function DealForm() {
                 </p>
               </div>
 
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className={labelCls}>Description</label>
                 <textarea rows={3} className={inputCls} value={form.description}
                   onChange={e => setField('description', e.target.value)} />
