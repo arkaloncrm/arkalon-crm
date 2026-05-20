@@ -288,9 +288,9 @@ export default function DealForm() {
   const isASC = form.business_unit === 'ASC';
   const isSS = form.business_unit === 'Simply Seated';
 
-  const inputCls = 'w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 bg-white';
+  const inputCls = 'w-full px-3 py-2 text-base sm:text-sm min-h-[44px] sm:min-h-0 border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 bg-white';
   const labelCls = 'block text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide mb-1';
-  const readonlyCls = 'w-full px-3 py-2 text-sm border border-slate-100 rounded font-opensans bg-slate-50 text-slate-600';
+  const readonlyCls = 'w-full px-3 py-2 text-base sm:text-sm min-h-[44px] sm:min-h-0 border border-slate-100 rounded font-opensans bg-slate-50 text-slate-600';
 
   return (
     <form onSubmit={handleSubmit}>

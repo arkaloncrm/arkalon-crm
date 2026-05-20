@@ -105,7 +105,7 @@ export default function SwipeableCard({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-lg w-full max-w-full" style={{ transform: 'translateZ(0)' }}>
+    <div className="relative overflow-hidden rounded-lg">
       {/* Call — revealed by swiping right */}
       <button
         type="button"
@@ -134,7 +134,7 @@ export default function SwipeableCard({
           transform: `translateX(${offset}px)`,
           transition: dragging ? 'none' : 'transform 0.2s ease',
         }}
-        className={`relative z-10 bg-white border border-arkalon-lightgrey rounded-lg p-3 active:bg-blue-50/40 ${className}`}
+        className={`relative z-10 min-w-0 bg-white border border-arkalon-lightgrey rounded-lg p-3 active:bg-blue-50/40 ${className}`}
       >
         {children}
       </div>

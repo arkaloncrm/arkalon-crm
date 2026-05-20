@@ -19,7 +19,7 @@ export default function QuickCreateMenu() {
     { label: 'New Lead', icon: UserPlus, action: () => navigate('/leads/new') },
     { label: 'New Contact', icon: User, action: () => navigate('/contacts/new') },
     { label: 'New Account', icon: Building2, action: () => navigate('/accounts/new') },
-    { label: 'New Deal', icon: Briefcase, action: () => addToast('Deals available in Session 4', 'info') },
+    { label: 'New Deal', icon: Briefcase, action: () => navigate('/deals/new') },
     { label: 'New Task', icon: CheckSquare, action: () => navigate('/tasks/new') },
     { label: 'Log Activity', icon: Phone, action: () => navigate('/activities/new') },
   ];
