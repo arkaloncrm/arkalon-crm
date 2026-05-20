@@ -254,6 +254,19 @@ export default function ContactDetail() {
           {activeTab === 'notes' && <NotesTab contactId={id} />}
           {activeTab === 'deals' && (
             <div>
+              <div className="flex justify-end mb-3">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => navigate(
+                    contact.account_id
+                      ? `/deals/new?account_id=${contact.account_id}`
+                      : '/deals/new'
+                  )}
+                >
+                  <Plus className="w-3.5 h-3.5" /> New Deal
+                </Button>
+              </div>
               {(!contact.deals || contact.deals.length === 0) ? (
                 <p className="text-sm text-slate-400 font-opensans text-center py-4">No deals linked</p>
               ) : (

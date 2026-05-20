@@ -321,7 +321,7 @@ export default function AccountDetail() {
           {activeTab === 'deals' && (
             <div>
               <div className="flex justify-end mb-3">
-                <Button size="sm" variant="secondary" disabled title="Available in Session 4">
+                <Button size="sm" variant="secondary" onClick={() => navigate(`/deals/new?account_id=${id}`)}>
                   <Plus className="w-3.5 h-3.5" /> New Deal
                 </Button>
               </div>

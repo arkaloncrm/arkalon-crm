@@ -105,7 +105,7 @@ export default function SwipeableCard({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div className="relative overflow-hidden rounded-lg w-full max-w-full" style={{ transform: 'translateZ(0)' }}>
       {/* Call — revealed by swiping right */}
       <button
         type="button"
