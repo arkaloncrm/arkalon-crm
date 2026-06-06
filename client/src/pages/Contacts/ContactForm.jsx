@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import DuplicateWarning from '../../components/UI/DuplicateWarning.jsx';
 import { contactsApi } from '../../api/contacts.js';
@@ -47,6 +47,7 @@ export default function ContactForm() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [accounts, setAccounts] = useState([]);
+  const [accountSearch, setAccountSearch] = useState('');
 
   const { matches: duplicates, check: checkDuplicates, clear: clearDuplicates } = useDuplicateCheck(
     'contact',
@@ -88,6 +89,24 @@ export default function ContactForm() {
   }, [id, isEdit]);
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
+
+  const filteredAccounts = useMemo(() => {
+    const q = accountSearch.toLowerCase();
+    return accounts.filter(a => a.name.toLowerCase().includes(q));
+  }, [accounts, accountSearch]);
+
+  const selectedAccount = accounts.find(a => String(a.id) === String(form.account_id));
+
+  const handleAccountChange = (accountId) => {
+    const acct = accounts.find(a => String(a.id) === String(accountId));
+    setForm(f => ({ ...f, account_id: accountId }));
+    if (acct) setAccountSearch(acct.name);
+  };
+
+  const handleAccountClear = () => {
+    setForm(f => ({ ...f, account_id: '' }));
+    setAccountSearch('');
+  };
 
   const validate = () => {
     const e = {};
@@ -153,10 +172,39 @@ export default function ContactForm() {
               <input type="text" className={inputCls()} value={form.title} onChange={set('title')} />
             </Field>
             <Field label="Account">
-              <select className={selectCls()} value={form.account_id} onChange={set('account_id')}>
-                <option value="">— No account —</option>
-                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              {form.account_id ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans bg-slate-50 text-slate-700 truncate">
+                    {selectedAccount ? selectedAccount.name : `Account #${form.account_id}`}
+                  </span>
+                  <button type="button" onClick={handleAccountClear}
+                    className="p-1.5 text-slate-400 hover:text-red-500 transition-colors border border-arkalon-lightgrey rounded">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input
+                    type="text"
+                    className={inputCls()}
+                    placeholder="Search accounts…"
+                    value={accountSearch}
+                    onChange={e => setAccountSearch(e.target.value)}
+                  />
+                  {accountSearch && filteredAccounts.length > 0 && (
+                    <div className="mt-1 border border-arkalon-lightgrey rounded bg-white shadow-sm max-h-40 overflow-y-auto z-10">
+                      {filteredAccounts.slice(0, 8).map(a => (
+                        <button key={a.id} type="button"
+                          className="w-full text-left px-3 py-2 text-sm font-opensans hover:bg-blue-50 transition-colors"
+                          onClick={() => handleAccountChange(String(a.id))}>
+                          {a.name}
+                          <span className="ml-2 text-xs text-slate-400">{a.business_unit}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </Field>
             <Field label="Business Unit" required error={errors.business_unit}>
               <select className={selectCls(errors.business_unit)} value={form.business_unit} onChange={set('business_unit')}>
