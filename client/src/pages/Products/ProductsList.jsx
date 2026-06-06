@@ -161,7 +161,7 @@ export default function ProductsList() {
                 </div>
                 {r.sku && <div className="text-xs font-mono text-slate-400 mt-0.5 truncate">{r.sku}</div>}
                 <div className="flex items-center justify-between gap-2 mt-2">
-                  <span className="text-sm font-opensans font-semibold text-slate-700">{formatCurrency(r.unit_price)}</span>
+                  <span className="text-sm font-opensans font-semibold text-slate-700">{formatCurrency(r.unit_price, 2)}</span>
                   <span className="text-xs text-slate-500 font-opensans">{r.unit_type || '—'}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -214,7 +214,7 @@ export default function ProductsList() {
                       {r.business_unit}
                     </Badge>
                   </Td>
-                  <Td>{formatCurrency(r.unit_price)}</Td>
+                  <Td>{formatCurrency(r.unit_price, 2)}</Td>
                   <Td className="text-slate-600">{r.default_commission_pct != null ? formatPercentage(r.default_commission_pct) : '—'}</Td>
                   <Td className="text-slate-500">{r.unit_type || '—'}</Td>
                   <Td>

@@ -585,6 +585,13 @@ router.put('/:id', async (req, res) => {
       await client.query('BEGIN');
 
       const financials = calculateDealFinancials(safeBody, resolvedLineItems);
+
+      // Closing a deal stamps the close date to today (UTC) as the source of
+      // truth, ignoring whatever close_date the client submitted.
+      const closeDate = safeBody.stage === 'Closed Won'
+        ? DateTime.utc().toISODate()
+        : (safeBody.close_date || null);
+
       await client.query(P(`
         UPDATE deals SET
           deal_name = ?, account_id = ?, stage = ?,
@@ -609,7 +616,7 @@ router.put('/:id', async (req, res) => {
         safeBody.stage,
         financials.probability,
         financials.forecast_category,
-        safeBody.close_date || null,
+        closeDate,
         safeBody.lead_source || null,
         safeBody.business_unit,
         safeBody.deal_type || null,

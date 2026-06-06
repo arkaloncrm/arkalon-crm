@@ -161,6 +161,20 @@ export default function DealForm() {
 
   const setField = (key, value) => setForm(f => ({ ...f, [key]: value }));
 
+  const handleStageChange = (value) => {
+    setForm(f => {
+      const next = { ...f, stage: value };
+      // Closing a deal auto-fills the close date to today (local) for immediate
+      // feedback; the backend re-stamps it in UTC as the source of truth.
+      if (value === 'Closed Won') {
+        const t = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        next.close_date = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+      }
+      return next;
+    });
+  };
+
   const handleAccountChange = (accountId) => {
     const acct = accounts.find(a => String(a.id) === String(accountId));
     setForm(f => ({ ...f, account_id: accountId }));
@@ -376,7 +390,7 @@ export default function DealForm() {
               <div>
                 <label className={labelCls}>Stage *</label>
                 <select className={inputCls} value={form.stage}
-                  onChange={e => setField('stage', e.target.value)} required>
+                  onChange={e => handleStageChange(e.target.value)} required>
                   {DEAL_STAGES.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
