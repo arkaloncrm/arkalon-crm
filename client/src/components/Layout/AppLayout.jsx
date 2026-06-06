@@ -13,7 +13,7 @@ export default function AppLayout() {
 
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden bg-arkalon-offwhite">
+      <div className="flex h-screen [height:100dvh] overflow-hidden bg-arkalon-offwhite">
         <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <TopBar onMenuClick={() => setMobileNavOpen(true)} />
