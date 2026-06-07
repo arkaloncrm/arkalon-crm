@@ -96,7 +96,7 @@ export default function CommissionForecastReport() {
         <ExportButton onClick={() => exportToCsv('commission_forecast', csvRows, CSV_COLUMNS)} disabled={csvRows.length === 0} />
       </div>
 
-      {months.map((month) => (
+      {months.slice().reverse().map((month) => (
         <div key={month.key} className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey bg-slate-50">
             <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm">
