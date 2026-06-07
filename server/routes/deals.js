@@ -288,6 +288,7 @@ router.get('/:id', async (req, res) => {
         deals.contract_term_months,
         deals.total_contract_earnings,
         deals.weighted_value,
+        deals.commission_warning,
         deals.description,
         deals.executive_summary,
         deals.next_action,
@@ -510,10 +511,25 @@ router.post('/', async (req, res) => {
 
     const client = await pool.connect();
     let dealId;
+    let commissionWarning = null;
     try {
       await client.query('BEGIN');
 
-      const financials = calculateDealFinancials(safeBody, resolvedLineItems);
+      // Tiered Simply Seated commission depends on the account's first Closed Won
+      // deal. Read it BEFORE the INSERT so the new row never skews the lookup.
+      let context = {};
+      if (safeBody.business_unit === 'Simply Seated' && safeBody.account_id) {
+        const firstDealResult = await client.query(P(`
+          SELECT MIN(close_date) as first_date
+          FROM deals
+          WHERE stage = 'Closed Won'
+            AND business_unit = 'Simply Seated'
+            AND account_id = ?
+        `), [safeBody.account_id]);
+        context = { firstDealDate: firstDealResult.rows[0]?.first_date || null };
+      }
+
+      const financials = calculateDealFinancials(safeBody, resolvedLineItems, context);
       const result = await client.query(P(`
         INSERT INTO deals (
           deal_name, account_id, stage, probability, forecast_category,
@@ -521,8 +537,8 @@ router.post('/', async (req, res) => {
           gross_total_value, monthly_recurring_revenue, commission_percentage,
           commission_amount, commission_override_amount, contract_term_months,
           total_contract_earnings, weighted_value,
-          description, next_action, next_action_date, deal_owner_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          description, next_action, next_action_date, deal_owner_id, commission_warning
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
       `), [
         safeBody.deal_name,
@@ -546,9 +562,11 @@ router.post('/', async (req, res) => {
         safeBody.next_action || null,
         safeBody.next_action_date || null,
         req.user.id,
+        financials.commission_warning,
       ]);
 
       dealId = result.rows[0].id;
+      commissionWarning = financials.commission_warning;
       await insertLineItems(client, dealId, resolvedLineItems);
       await insertContactRoles(client, dealId, resolvedContactRoles);
 
@@ -560,7 +578,7 @@ router.post('/', async (req, res) => {
       client.release();
     }
 
-    res.status(201).json({ success: true, data: { id: dealId } });
+    res.status(201).json({ success: true, data: { id: dealId, commission_warning: commissionWarning } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -581,10 +599,28 @@ router.put('/:id', async (req, res) => {
     const { resolvedLineItems, resolvedContactRoles } = validation;
 
     const client = await pool.connect();
+    let commissionWarning = null;
     try {
       await client.query('BEGIN');
 
-      const financials = calculateDealFinancials(safeBody, resolvedLineItems);
+      // Tiered Simply Seated commission depends on the account's first Closed Won
+      // deal. Read it BEFORE the UPDATE (excluding this deal) so a stage change
+      // written below cannot affect the lookup.
+      let context = {};
+      if (safeBody.business_unit === 'Simply Seated' && safeBody.account_id) {
+        const firstDealResult = await client.query(P(`
+          SELECT MIN(close_date) as first_date
+          FROM deals
+          WHERE stage = 'Closed Won'
+            AND business_unit = 'Simply Seated'
+            AND account_id = ?
+            AND id != ?
+        `), [safeBody.account_id, id]);
+        context = { firstDealDate: firstDealResult.rows[0]?.first_date || null };
+      }
+
+      const financials = calculateDealFinancials(safeBody, resolvedLineItems, context);
+      commissionWarning = financials.commission_warning;
 
       // Closing a deal stamps the close date to today (UTC) as the source of
       // truth, ignoring whatever close_date the client submitted.
@@ -608,6 +644,7 @@ router.put('/:id', async (req, res) => {
           weighted_value = ?,
           description = ?, next_action = ?,
           next_action_date = ?,
+          commission_warning = ?,
           updated_at = NOW()
         WHERE id = ?
       `), [
@@ -631,6 +668,7 @@ router.put('/:id', async (req, res) => {
         safeBody.description || null,
         safeBody.next_action || null,
         safeBody.next_action_date || null,
+        financials.commission_warning,
         id,
       ]);
 
@@ -647,7 +685,7 @@ router.put('/:id', async (req, res) => {
       client.release();
     }
 
-    res.json({ success: true, data: { id } });
+    res.json({ success: true, data: { id, commission_warning: commissionWarning } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

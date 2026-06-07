@@ -13,7 +13,7 @@ const STAGE_MAP = {
 
 const r = (v) => Math.round((Number(v) || 0) * 100) / 100;
 
-function calculateDealFinancials(deal, lineItems = []) {
+function calculateDealFinancials(deal, lineItems = [], context = {}) {
   const recurringMonthlyTotal = r(
     lineItems
       .filter(item => item.is_recurring == 1 || item.is_recurring === true)
@@ -49,6 +49,7 @@ function calculateDealFinancials(deal, lineItems = []) {
   let commission_percentage = null;
   let commission_amount = 0;
   let total_contract_earnings = 0;
+  let commission_warning = null;
 
   const hasOverride =
     deal.commission_override_amount !== null &&
@@ -61,9 +62,41 @@ function calculateDealFinancials(deal, lineItems = []) {
     total_contract_earnings = commission_amount;
     commission_percentage = null;
   } else if (deal.business_unit === 'Simply Seated') {
-    commission_percentage = 0.10;
-    commission_amount = r(gross_total_value * 0.10);
+    const firstDate = context.firstDealDate ? new Date(context.firstDealDate) : null;
+    const dealDate = deal.close_date ? new Date(deal.close_date) : new Date();
+
+    // Normalise both to midnight UTC to avoid timezone boundary issues
+    if (firstDate) firstDate.setUTCHours(0, 0, 0, 0);
+    dealDate.setUTCHours(0, 0, 0, 0);
+
+    const daysSinceFirst = firstDate
+      ? Math.max(0, Math.floor((dealDate - firstDate) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    // 3-year cap uses calendar years not fixed days
+    const threeYearsAfterFirst = firstDate
+      ? new Date(Date.UTC(
+          firstDate.getUTCFullYear() + 3,
+          firstDate.getUTCMonth(),
+          firstDate.getUTCDate()
+        ))
+      : null;
+
+    let ssRate = 0.10;
+    let ssWarning = null;
+
+    if (firstDate && threeYearsAfterFirst && dealDate >= threeYearsAfterFirst) {
+      ssRate = 0.05;
+      ssWarning = 'beyond_3_year_cap';
+    } else if (firstDate && daysSinceFirst > 180) {
+      ssRate = 0.05;
+    }
+    // else: new client or within 180 days → 10%
+
+    commission_percentage = ssRate;
+    commission_amount = r(gross_total_value * ssRate);
     total_contract_earnings = commission_amount;
+    commission_warning = ssWarning;
   } else if (deal.business_unit === 'ASC') {
     if (deal.deal_type === 'Direct Customer') {
       commission_percentage = 0.14;
@@ -85,6 +118,7 @@ function calculateDealFinancials(deal, lineItems = []) {
     weighted_value,
     probability,
     forecast_category,
+    commission_warning,
   };
 }
 

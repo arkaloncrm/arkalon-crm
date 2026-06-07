@@ -341,6 +341,11 @@ export default function DealDetail() {
                   {formatCurrency(deal.total_contract_earnings)}
                 </div>
                 <div className="text-sm text-slate-500 font-opensans">{deal.commission_basis}</div>
+                {deal.commission_warning === 'beyond_3_year_cap' && (
+                  <div className="text-xs font-opensans text-amber-600 mt-2">
+                    ⚠️ Beyond 3-year cap — verify entitlement
+                  </div>
+                )}
               </div>
             </div>
           </div>
