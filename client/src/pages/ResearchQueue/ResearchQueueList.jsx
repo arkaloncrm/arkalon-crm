@@ -31,6 +31,9 @@ export default function ResearchQueueList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [confidenceFilter, setConfidenceFilter] = useState('');
 
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
+
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectLoading, setRejectLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -43,12 +46,14 @@ export default function ResearchQueueList() {
     if (statusFilter) params.status = statusFilter;
     if (confidenceFilter) params.confidence_level = confidenceFilter;
     if (search) params.search = search;
+    params.sort_by = sortBy;
+    params.sort_dir = sortDir;
 
     researchQueueApi.getAll(params)
       .then(res => setRecords(res.data.data || []))
       .catch(() => addToast('Failed to load research queue', 'error'))
       .finally(() => setLoading(false));
-  }, [search, buFilter, typeFilter, statusFilter, confidenceFilter]);
+  }, [search, buFilter, typeFilter, statusFilter, confidenceFilter, sortBy, sortDir]);
 
   useEffect(() => {
     const t = setTimeout(fetchRecords, search ? 300 : 0);
@@ -112,6 +117,15 @@ export default function ResearchQueueList() {
   const filtersActive = buFilter || typeFilter || statusFilter || confidenceFilter || search;
   const clearFilters = () => {
     setSearch(''); setBuFilter(''); setTypeFilter(''); setStatusFilter(''); setConfidenceFilter('');
+  };
+
+  const handleSort = (col) => {
+    if (sortBy === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir('asc');
+    }
   };
 
   return (
@@ -239,12 +253,29 @@ export default function ResearchQueueList() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-arkalon-lightgrey">
                   <tr>
-                    {['Title / Company', 'Type', 'Status', 'Confidence', 'Business Unit', 'Source', 'Created', 'Actions'].map(h => (
+                    {[
+                      { label: 'Title / Company', sortKey: 'title' },
+                      { label: 'Type' },
+                      { label: 'Status', sortKey: 'status' },
+                      { label: 'Confidence' },
+                      { label: 'Business Unit', sortKey: 'business_unit' },
+                      { label: 'Source' },
+                      { label: 'Created', sortKey: 'created_at' },
+                      { label: 'Actions' },
+                    ].map(({ label, sortKey }) => (
                       <th
-                        key={h}
-                        className="px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                        key={label}
+                        onClick={sortKey ? () => handleSort(sortKey) : undefined}
+                        className={`px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap${sortKey ? ' cursor-pointer select-none hover:text-slate-700' : ''}`}
                       >
-                        {h}
+                        {label}
+                        {sortKey && (
+                          <span className="ml-1">
+                            {sortBy === sortKey
+                              ? (sortDir === 'asc' ? '↑' : '↓')
+                              : <span className="text-slate-300">↕</span>}
+                          </span>
+                        )}
                       </th>
                     ))}
                   </tr>

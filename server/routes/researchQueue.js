@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const allowedSorts = ['id', 'created_at', 'updated_at', 'status', 'confidence_level', 'candidate_type'];
+    const allowedSorts = ['id', 'created_at', 'updated_at', 'status', 'confidence_level', 'candidate_type', 'business_unit', 'title', 'company_name'];
     const col = allowedSorts.includes(sort_by) ? sort_by : 'created_at';
     const dir = sort_dir === 'asc' ? 'ASC' : 'DESC';
 
