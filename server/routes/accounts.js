@@ -5,7 +5,7 @@ const router = express.Router();
 // GET /api/accounts
 router.get('/', async (req, res) => {
   try {
-    const { business_unit, search, industry } = req.query;
+    const { business_unit, search, industry, sort_by, sort_dir } = req.query;
 
     const conditions = [];
     const params = [];
@@ -20,6 +20,10 @@ router.get('/', async (req, res) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    const allowedSorts = ['name', 'business_unit', 'created_at', 'updated_at', 'industry'];
+    const col = allowedSorts.includes(sort_by) ? sort_by : 'name';
+    const dir = sort_dir === 'desc' ? 'DESC' : 'ASC';
+
     const { rows: accounts } = await pool.query(P(`
       SELECT a.*, u.name as account_owner_name,
         (SELECT COUNT(*) FROM deals d
@@ -27,7 +31,7 @@ router.get('/', async (req, res) => {
       FROM accounts a
       LEFT JOIN users u ON a.account_owner_id = u.id
       ${where}
-      ORDER BY a.name ASC
+      ORDER BY a.${col} ${dir}
     `), params);
 
     res.json({ success: true, data: accounts, total: accounts.length });

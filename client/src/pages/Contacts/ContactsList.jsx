@@ -89,6 +89,8 @@ export default function ContactsList() {
   const [search, setSearch] = useState('');
   const [buFilter, setBuFilter] = useState('');
   const [accountFilter, setAccountFilter] = useState('');
+  const [sortBy, setSortBy] = useState('last_name');
+  const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(1);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -106,7 +108,7 @@ export default function ContactsList() {
 
   const fetchContacts = useCallback(() => {
     setLoading(true);
-    const params = {};
+    const params = { sort_by: sortBy, sort_dir: sortDir };
     if (buFilter) params.business_unit = buFilter;
     if (accountFilter) params.account_id = accountFilter;
     if (search) params.search = search;
@@ -115,12 +117,17 @@ export default function ContactsList() {
       .then(res => { setContacts(res.data.data || []); setPage(1); })
       .catch(() => addToast('Failed to load contacts', 'error'))
       .finally(() => setLoading(false));
-  }, [search, buFilter, accountFilter]);
+  }, [search, buFilter, accountFilter, sortBy, sortDir]);
 
   useEffect(() => {
     const t = setTimeout(fetchContacts, search ? 300 : 0);
     return () => clearTimeout(t);
   }, [fetchContacts, search]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -318,8 +325,31 @@ export default function ContactsList() {
                     onChange={(e) => setSelectedIds(e.target.checked ? contacts.map(r => r.id) : [])}
                   />
                 </th>
-                {['Name', 'Account', 'Business Unit', 'Title', 'Email', 'Phone', 'Mobile', 'Created', 'Actions'].map(col => (
-                  <th key={col} className="px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
+                {[
+                  { label: 'Name', sortKey: 'last_name' },
+                  { label: 'Account' },
+                  { label: 'Business Unit', sortKey: 'business_unit' },
+                  { label: 'Title' },
+                  { label: 'Email' },
+                  { label: 'Phone' },
+                  { label: 'Mobile' },
+                  { label: 'Created', sortKey: 'created_at' },
+                  { label: 'Actions' },
+                ].map(({ label, sortKey }) => (
+                  <th
+                    key={label}
+                    onClick={sortKey ? () => handleSort(sortKey) : undefined}
+                    className={`px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap${sortKey ? ' cursor-pointer select-none hover:text-slate-700' : ''}`}
+                  >
+                    {label}
+                    {sortKey && (
+                      <span className="ml-1">
+                        {sortBy === sortKey
+                          ? (sortDir === 'asc' ? '↑' : '↓')
+                          : <span className="text-slate-300">↕</span>}
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>

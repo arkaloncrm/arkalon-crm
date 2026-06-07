@@ -45,6 +45,8 @@ export default function AccountsList() {
   const [buFilter, setBuFilter] = useState('');
   const [industryFilter, setIndustryFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState(false);
+  const [sortBy, setSortBy] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(1);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -53,7 +55,7 @@ export default function AccountsList() {
 
   const fetchAccounts = useCallback(() => {
     setLoading(true);
-    const params = {};
+    const params = { sort_by: sortBy, sort_dir: sortDir };
     if (buFilter) params.business_unit = buFilter;
     if (industryFilter) params.industry = industryFilter;
     if (search) params.search = search;
@@ -62,12 +64,17 @@ export default function AccountsList() {
       .then(res => { setAccounts(res.data.data || []); setPage(1); })
       .catch(() => addToast('Failed to load accounts', 'error'))
       .finally(() => setLoading(false));
-  }, [search, buFilter, industryFilter]);
+  }, [search, buFilter, industryFilter, sortBy, sortDir]);
 
   useEffect(() => {
     const t = setTimeout(fetchAccounts, search ? 300 : 0);
     return () => clearTimeout(t);
   }, [fetchAccounts, search]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -248,8 +255,31 @@ export default function AccountsList() {
                   />
                 </th>
                 <th className="px-2 py-2.5 w-11"><span className="sr-only">Priority</span></th>
-                {['Account Name', 'Business Unit', 'Industry', 'Phone', 'Website', 'Employees', 'Open Deals', 'Created', 'Actions'].map(col => (
-                  <th key={col} className="px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
+                {[
+                  { label: 'Account Name', sortKey: 'name' },
+                  { label: 'Business Unit', sortKey: 'business_unit' },
+                  { label: 'Industry' },
+                  { label: 'Phone' },
+                  { label: 'Website' },
+                  { label: 'Employees' },
+                  { label: 'Open Deals' },
+                  { label: 'Created', sortKey: 'created_at' },
+                  { label: 'Actions' },
+                ].map(({ label, sortKey }) => (
+                  <th
+                    key={label}
+                    onClick={sortKey ? () => handleSort(sortKey) : undefined}
+                    className={`px-3 py-2.5 text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap${sortKey ? ' cursor-pointer select-none hover:text-slate-700' : ''}`}
+                  >
+                    {label}
+                    {sortKey && (
+                      <span className="ml-1">
+                        {sortBy === sortKey
+                          ? (sortDir === 'asc' ? '↑' : '↓')
+                          : <span className="text-slate-300">↕</span>}
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>

@@ -5,7 +5,7 @@ const router = express.Router();
 // GET /api/contacts
 router.get('/', async (req, res) => {
   try {
-    const { business_unit, search, account_id } = req.query;
+    const { business_unit, search, account_id, sort_by, sort_dir } = req.query;
 
     const conditions = [];
     const params = [];
@@ -20,13 +20,19 @@ router.get('/', async (req, res) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    const allowedSorts = ['last_name', 'first_name', 'created_at', 'updated_at', 'business_unit'];
+    const col = allowedSorts.includes(sort_by) ? sort_by : 'last_name';
+    const dir = sort_dir === 'desc' ? 'DESC' : 'ASC';
+    // Break last_name ties by first name, matching the original default ordering.
+    const orderBy = col === 'last_name' ? `c.${col} ${dir}, c.first_name ASC` : `c.${col} ${dir}`;
+
     const { rows: contacts } = await pool.query(P(`
       SELECT c.*, a.name as account_name, u.name as contact_owner_name
       FROM contacts c
       LEFT JOIN accounts a ON c.account_id = a.id
       LEFT JOIN users u ON c.contact_owner_id = u.id
       ${where}
-      ORDER BY c.last_name ASC, c.first_name ASC
+      ORDER BY ${orderBy}
     `), params);
 
     res.json({ success: true, data: contacts, total: contacts.length });
