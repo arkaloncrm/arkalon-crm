@@ -256,12 +256,13 @@ export default function ResearchQueueList() {
                       className={`border-b border-arkalon-lightgrey h-11 hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}
                     >
                       <td className="px-3 whitespace-nowrap">
-                        <button
-                          onClick={() => navigate(`/research-queue/${rec.id}`)}
+                        <a
+                          href={`/research-queue/${rec.id}`}
+                          onClick={(e) => { e.preventDefault(); navigate(`/research-queue/${rec.id}`); }}
                           className="font-semibold hover:underline font-opensans text-sm text-arkalon-blue text-left"
                         >
                           {rec.title || rec.company_name || 'Untitled record'}
-                        </button>
+                        </a>
                         {rec.company_name && rec.title && (
                           <div className="text-xs text-slate-400 font-opensans">{rec.company_name}</div>
                         )}
