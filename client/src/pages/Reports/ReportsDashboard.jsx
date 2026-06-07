@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Wallet, DollarSign, TrendingUp, Scale, Calendar, ListChecks, AlertTriangle, BarChart2, Activity } from 'lucide-react';
 import CommissionEarnedReport from './CommissionEarnedReport.jsx';
 import CommissionForecastReport from './CommissionForecastReport.jsx';
@@ -80,6 +80,11 @@ export default function ReportsDashboard() {
   const [activeId, setActiveId] = useState('commission-earned');
   const active = REPORTS.find((r) => r.id === activeId) || REPORTS[0];
   const ActiveReport = active.component;
+  const reportRef = useRef(null);
+
+  useEffect(() => {
+    reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [activeId]);
 
   return (
     <div className="arkalon-page arkalon-reports">
@@ -117,7 +122,9 @@ export default function ReportsDashboard() {
         })}
       </div>
 
-      <ActiveReport />
+      <div ref={reportRef} className="scroll-mt-4">
+        <ActiveReport />
+      </div>
     </div>
   );
 }
