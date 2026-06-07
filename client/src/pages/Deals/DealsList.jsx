@@ -113,16 +113,23 @@ export default function DealsList() {
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [sortBy, setSortBy] = useState('close_date');
+  const [sortDir, setSortDir] = useState('asc');
 
   const loadDeals = () => {
     setLoading(true);
-    dealsApi.getAll({ sort_by: 'close_date', sort_dir: 'asc', product_id: productIdFilter || undefined })
+    dealsApi.getAll({ sort_by: sortBy, sort_dir: sortDir, product_id: productIdFilter || undefined })
       .then(res => setDeals(res.data.data || []))
       .catch(() => addToast('Failed to load deals', 'error'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadDeals(); }, [productIdFilter]);
+  useEffect(() => { loadDeals(); }, [productIdFilter, sortBy, sortDir]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  };
 
   const clearProductFilter = () => {
     searchParams.delete('product_id');
@@ -280,14 +287,14 @@ export default function DealsList() {
             <Table>
               <Thead>
                 <tr>
-                  <Th>Deal Name</Th>
+                  <Th sortable sorted={sortBy === 'deal_name'} direction={sortDir} onClick={() => handleSort('deal_name')}>Deal Name</Th>
                   <Th>Account</Th>
-                  <Th>Stage</Th>
-                  <Th>Close Date</Th>
-                  <Th>Gross Value</Th>
+                  <Th sortable sorted={sortBy === 'stage'} direction={sortDir} onClick={() => handleSort('stage')}>Stage</Th>
+                  <Th sortable sorted={sortBy === 'close_date'} direction={sortDir} onClick={() => handleSort('close_date')}>Close Date</Th>
+                  <Th sortable sorted={sortBy === 'gross_total_value'} direction={sortDir} onClick={() => handleSort('gross_total_value')}>Gross Value</Th>
                   <Th>MRR</Th>
-                  <Th>Commission</Th>
-                  <Th>Prob%</Th>
+                  <Th sortable sorted={sortBy === 'total_contract_earnings'} direction={sortDir} onClick={() => handleSort('total_contract_earnings')}>Commission</Th>
+                  <Th sortable sorted={sortBy === 'probability'} direction={sortDir} onClick={() => handleSort('probability')}>Prob%</Th>
                   <Th>Next Action</Th>
                   <Th>BU</Th>
                   <Th></Th>
