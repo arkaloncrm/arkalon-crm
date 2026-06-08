@@ -79,6 +79,9 @@ router.post('/', async (req, res) => {
     if (!last_name || !company) {
       return res.status(400).json({ success: false, error: 'Last name and company are required' });
     }
+    if (!business_unit || !['ASC', 'Simply Seated'].includes(business_unit)) {
+      return res.status(400).json({ success: false, error: 'Business unit must be ASC or Simply Seated' });
+    }
 
     const insert = await pool.query(P(`
       INSERT INTO leads (

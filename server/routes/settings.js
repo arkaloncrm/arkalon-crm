@@ -5,7 +5,9 @@ const { pool, P } = require('../database');
 const router = express.Router();
 
 const normName = (v) => String(v || '').trim().toLowerCase();
-const VALID_BUS_IMPORT = ['ASC', 'Simply Seated', 'Both'];
+// Imports may only set a single, task-valid business unit — 'Both' is rejected
+// here even though the column CHECK still permits it for legacy reasons.
+const VALID_BUS_IMPORT = ['ASC', 'Simply Seated'];
 
 // GET /api/settings/profile — load current user for the Settings form
 router.get('/profile', async (req, res) => {
@@ -182,9 +184,17 @@ router.post('/import', async (req, res) => {
     revalidateContact(c) && (includeWarnings ? c.status !== 'error' : c.status === 'ok')
   );
 
+  // Surface rows rejected specifically for an invalid business_unit (e.g. 'Both'
+  // or blank) rather than dropping them silently — a row that has the required
+  // name/last_name but a bad BU is counted here so the caller sees why it was
+  // not imported.
+  const hasInvalidBu = (bu) => !VALID_BUS_IMPORT.includes(String(bu || '').trim());
+  const skippedInvalidBuAccounts = accounts.filter(a => a.name?.trim() && hasInvalidBu(a.business_unit)).length;
+  const skippedInvalidBuContacts = contacts.filter(c => c.last_name?.trim() && hasInvalidBu(c.business_unit)).length;
+
   const results = {
-    accounts: { imported: 0, skipped_duplicate: 0 },
-    contacts: { imported: 0, imported_without_account: 0, skipped_duplicate: 0, skipped: 0 },
+    accounts: { imported: 0, skipped_duplicate: 0, skipped_invalid_bu: skippedInvalidBuAccounts },
+    contacts: { imported: 0, imported_without_account: 0, skipped_duplicate: 0, skipped: 0, skipped_invalid_bu: skippedInvalidBuContacts },
   };
 
   const client = await pool.connect();
