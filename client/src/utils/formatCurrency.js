@@ -1,4 +1,4 @@
-export const formatCurrency = (value, decimals = 0) => {
+export const formatCurrency = (value, decimals = 2) => {
   if (value === null || value === undefined || value === '') return '—';
   const num = Number(value);
   if (isNaN(num)) return '—';

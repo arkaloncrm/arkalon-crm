@@ -192,7 +192,7 @@ export default function MeetingBrief({ open, onClose, entityType, entity, onCall
                   <span className="flex items-center gap-2 flex-shrink-0">
                     <Badge className={STAGE_COLOURS[d.stage] || 'bg-slate-100 text-slate-600'}>{d.stage}</Badge>
                     <span className="text-sm font-opensans font-semibold text-slate-700">
-                      {formatCurrency(d.gross_total_value)}
+                      {formatCurrency(d.gross_total_value, 0)}
                     </span>
                   </span>
                 </div>

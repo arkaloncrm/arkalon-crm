@@ -129,7 +129,7 @@ export default function OpenPipelineReport() {
                     <Badge className={STAGE_COLOURS[d.stage] || 'bg-gray-100 text-gray-700'}>{d.stage}</Badge>
                   </Td>
                   <Td className={closeRed ? 'text-red-600 font-semibold' : ''}>{formatDate(d.close_date)}</Td>
-                  <Td>{formatCurrency(d.gross_total_value)}</Td>
+                  <Td>{formatCurrency(d.gross_total_value, 0)}</Td>
                   <Td>{d.business_unit === 'ASC' ? formatMrr(d.monthly_recurring_revenue) : '—'}</Td>
                   <Td>
                     <span className="font-bold" style={{ color: '#0073C6' }}>
@@ -150,7 +150,7 @@ export default function OpenPipelineReport() {
               <Td></Td>
               <Td></Td>
               <Td></Td>
-              <Td className="font-semibold">{formatCurrency(totals.gross)}</Td>
+              <Td className="font-semibold">{formatCurrency(totals.gross, 0)}</Td>
               <Td></Td>
               <Td className="font-bold" >
                 <span style={{ color: '#0073C6' }}>{formatCurrency(totals.commission, 2)}</span>

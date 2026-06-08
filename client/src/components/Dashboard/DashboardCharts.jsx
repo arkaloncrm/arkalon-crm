@@ -58,7 +58,7 @@ function PipelineTooltip({ active, payload }) {
     <div className="bg-white rounded-lg shadow-md border border-arkalon-lightgrey px-3 py-2 text-xs font-opensans">
       <div className="font-montserrat font-semibold text-arkalon-navy mb-0.5">{d.stage}</div>
       <div className="text-slate-500">{d.deal_count} deal{d.deal_count === 1 ? '' : 's'}</div>
-      <div className="font-semibold mt-0.5" style={{ color: '#0073C6' }}>{formatCurrency(d.total_commission)}</div>
+      <div className="font-semibold mt-0.5" style={{ color: '#0073C6' }}>{formatCurrency(d.total_commission, 0)}</div>
     </div>
   );
 }
@@ -70,7 +70,7 @@ function BuTooltip({ active, payload }) {
     <div className="bg-white rounded-lg shadow-md border border-arkalon-lightgrey px-3 py-2 text-xs font-opensans">
       <div className="font-montserrat font-semibold text-arkalon-navy mb-0.5">{d.business_unit}</div>
       <div className="text-slate-500">{d.deal_count} deal{d.deal_count === 1 ? '' : 's'}</div>
-      <div className="font-semibold mt-0.5" style={{ color: '#0073C6' }}>{formatCurrency(d.total_commission)}</div>
+      <div className="font-semibold mt-0.5" style={{ color: '#0073C6' }}>{formatCurrency(d.total_commission, 0)}</div>
     </div>
   );
 }
@@ -217,7 +217,7 @@ export default function DashboardCharts() {
                   <div key={b.business_unit} className="flex items-center gap-2 text-xs font-opensans">
                     <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: BU_FILL[b.business_unit] || '#94A3B8' }} />
                     <span className="text-slate-600 flex-1 truncate">{b.business_unit}</span>
-                    <span className="font-semibold text-arkalon-navy">{formatCurrency(b.total_commission)}</span>
+                    <span className="font-semibold text-arkalon-navy">{formatCurrency(b.total_commission, 0)}</span>
                     <span className="text-slate-400">· {b.deal_count} deal{b.deal_count === 1 ? '' : 's'}</span>
                   </div>
                 ))}

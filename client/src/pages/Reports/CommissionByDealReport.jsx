@@ -167,7 +167,7 @@ export default function CommissionByDealReport() {
                     <Badge className={STAGE_COLOURS[d.stage] || 'bg-gray-100 text-gray-700'}>{d.stage}</Badge>
                   </Td>
                   <Td className={lost ? 'text-slate-400' : ''}>{formatDate(d.close_date)}</Td>
-                  <Td className={lost ? 'text-slate-400' : ''}>{formatCurrency(d.gross_total_value)}</Td>
+                  <Td className={lost ? 'text-slate-400' : ''}>{formatCurrency(d.gross_total_value, 0)}</Td>
                   <Td className={lost ? 'text-slate-400' : ''}>{rateLabel(d)}</Td>
                   <Td>
                     <span className="font-bold" style={{ color: lost ? '#94a3b8' : '#0073C6' }}>

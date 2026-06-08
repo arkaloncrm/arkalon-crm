@@ -86,7 +86,7 @@ export default function CommissionEarnedReport() {
                     </Badge>
                   </Td>
                   <Td>{formatDate(d.close_date)}</Td>
-                  <Td>{formatCurrency(d.gross_total_value)}</Td>
+                  <Td>{formatCurrency(d.gross_total_value, 0)}</Td>
                   <Td>
                     <span className="font-bold" style={{ color: '#0073C6' }}>
                       {formatCurrency(d.total_contract_earnings, 2)}
