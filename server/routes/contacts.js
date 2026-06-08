@@ -77,6 +77,9 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     if (!last_name) return res.status(400).json({ success: false, error: 'Last name is required' });
+    if (!business_unit || !['ASC', 'Simply Seated'].includes(business_unit)) {
+      return res.status(400).json({ success: false, error: 'Business unit must be ASC or Simply Seated' });
+    }
 
     const insert = await pool.query(P(`
       INSERT INTO contacts (account_id, salutation, first_name, last_name, title, email, phone,
@@ -112,6 +115,13 @@ router.put('/:id', async (req, res) => {
     ];
     const updates = fields.filter(f => req.body[f] !== undefined);
     if (updates.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });
+
+    // An edit must not clear or invalidate business_unit — only validate when it
+    // is actually being changed (partial updates may omit it entirely).
+    if (req.body.business_unit !== undefined &&
+        (!req.body.business_unit || !['ASC', 'Simply Seated'].includes(req.body.business_unit))) {
+      return res.status(400).json({ success: false, error: 'Business unit must be ASC or Simply Seated' });
+    }
 
     const setClause = updates.map(f => `${f} = ?`).join(', ');
     await pool.query(
