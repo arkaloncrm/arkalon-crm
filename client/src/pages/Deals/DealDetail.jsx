@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import ExecutiveSummary from '../../components/UI/ExecutiveSummary.jsx';
+import TaskSuggestion from '../../components/UI/TaskSuggestion.jsx';
 import MeetingBrief from '../../components/UI/MeetingBrief.jsx';
 import { PhoneLink, EmailLink, CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import DealContactRoles from './DealContactRoles.jsx';
@@ -61,6 +62,7 @@ function NotesTab({ dealId }) {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [suggestion, setSuggestion] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -71,13 +73,18 @@ function NotesTab({ dealId }) {
   }, [dealId]);
 
   const handleAdd = async () => {
-    if (!noteText.trim()) return;
+    const text = noteText.trim();
+    if (!text) return;
     setSaving(true);
     try {
-      const res = await notesApi.create({ content: noteText.trim(), deal_id: dealId });
+      const res = await notesApi.create({ content: text, deal_id: dealId });
       setNotes(prev => [res.data.data, ...prev]);
       setNoteText('');
       addToast('Note added', 'success');
+      // Non-blocking: parse for a follow-up task suggestion after the note saved.
+      notesApi.suggestTask({ content: text, deal_id: dealId })
+        .then(r => { if (r.data.data?.action_detected) setSuggestion(r.data.data); })
+        .catch(() => {});
     } catch {
       addToast('Failed to add note', 'error');
     } finally {
@@ -124,6 +131,9 @@ function NotesTab({ dealId }) {
           </Button>
         </div>
       </div>
+      {suggestion && (
+        <TaskSuggestion suggestion={suggestion} onClose={() => setSuggestion(null)} />
+      )}
       {notes.length === 0 ? (
         <p className="text-sm text-slate-400 font-opensans text-center py-4">No notes yet</p>
       ) : (

@@ -1,6 +1,12 @@
 const express = require('express');
 const { pool, P } = require('../database');
+const { parseNoteTask } = require('../utils/parseNoteTask');
 const router = express.Router();
+
+// Whitelisted parent tables for server-side business_unit inheritance. Keyed by
+// the note's polymorphic link field — the value is interpolated into SQL so it
+// must never come from user input.
+const BU_SOURCE = { deal_id: 'deals', account_id: 'accounts', contact_id: 'contacts', lead_id: 'leads' };
 
 // GET /api/notes?lead_id=X or ?contact_id=X or ?account_id=X or ?deal_id=X
 router.get('/', async (req, res) => {
@@ -73,6 +79,62 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/notes/suggest-task
+// Called by the client AFTER a note has already been saved (a separate request,
+// so it never delays or gates note saving). Parses the note for a single
+// follow-up task and resolves business_unit from the in-context record. Never
+// throws to the client — on any problem it returns action_detected:false so the
+// note flow is undisturbed.
+router.post('/suggest-task', async (req, res) => {
+  try {
+    const { content, lead_id, contact_id, account_id, deal_id } = req.body;
+
+    // Resolve the single in-context link (same precedence the note carries).
+    const link = {};
+    if (deal_id) link.deal_id = deal_id;
+    else if (account_id) link.account_id = account_id;
+    else if (contact_id) link.contact_id = contact_id;
+    else if (lead_id) link.lead_id = lead_id;
+
+    const linkKeys = Object.keys(link);
+    if (!content || linkKeys.length !== 1) {
+      return res.json({ success: true, data: { action_detected: false } });
+    }
+
+    const parsed = await parseNoteTask(content);
+    if (!parsed.action_detected) {
+      return res.json({ success: true, data: { action_detected: false } });
+    }
+
+    // Inherit business_unit from the in-context record, resolved server-side.
+    const linkField = linkKeys[0];
+    const r = await pool.query(P(`SELECT business_unit FROM ${BU_SOURCE[linkField]} WHERE id = ?`), [link[linkField]]);
+    const business_unit = r.rows[0]?.business_unit ?? null;
+    const bu_valid = ['ASC', 'Simply Seated'].includes(business_unit);
+
+    res.json({
+      success: true,
+      data: {
+        action_detected: true,
+        subject: parsed.subject,
+        due_datetime: parsed.due_datetime,
+        is_all_day: parsed.is_all_day,
+        reminder_datetime: parsed.reminder_datetime,
+        due_date: parsed.due_date,
+        due_time: parsed.due_time,
+        link,
+        // Only inherit silently when valid; otherwise the UI must collect a BU.
+        business_unit: bu_valid ? business_unit : null,
+        bu_valid,
+      },
+    });
+  } catch (err) {
+    // Defensive: a suggestion failure must never surface as an error to the user.
+    console.error('[NOTE-SUGGEST] Failed:', err.message);
+    res.json({ success: true, data: { action_detected: false } });
   }
 });
 
