@@ -25,7 +25,7 @@ function FieldRow({ label, value }) {
   return (
     <div className="flex py-2 border-b border-slate-100 last:border-0">
       <span className="w-44 flex-shrink-0 text-xs text-slate-400 font-opensans uppercase tracking-wide pt-0.5">{label}</span>
-      <span className="text-sm text-slate-800 font-opensans flex-1">{value || '—'}</span>
+      <span className="text-sm text-slate-800 font-opensans flex-1 min-w-0 break-words">{value || '—'}</span>
     </div>
   );
 }
@@ -288,6 +288,7 @@ export default function AccountDetail() {
               {(!account.contacts || account.contacts.length === 0) ? (
                 <p className="text-sm text-slate-400 font-opensans text-center py-4">No contacts linked to this account</p>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-arkalon-lightgrey">
                     {['Name', 'Title', 'Email', 'Phone', 'Actions'].map(h => (
@@ -314,6 +315,7 @@ export default function AccountDetail() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}
@@ -328,6 +330,7 @@ export default function AccountDetail() {
               {(!account.deals || account.deals.length === 0) ? (
                 <p className="text-sm text-slate-400 font-opensans text-center py-4">No deals linked to this account</p>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-arkalon-lightgrey">
                     {['Deal Name', 'Stage', 'Value', 'Close Date'].map(h => (
@@ -347,6 +350,7 @@ export default function AccountDetail() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}

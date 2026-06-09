@@ -153,6 +153,7 @@ export default function DealContactRoles({ dealId, accountId }) {
             No contacts linked to this deal. Add one above.
           </p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-arkalon-lightgrey">
@@ -192,6 +193,7 @@ export default function DealContactRoles({ dealId, accountId }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
       <AddContactModal
