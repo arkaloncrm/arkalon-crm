@@ -251,17 +251,17 @@ export default function DealDetail() {
     <div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <button onClick={() => navigate('/deals')} className="text-arkalon-blue text-sm hover:underline font-opensans">
               ← Deals
             </button>
           </div>
-          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl mb-2">{deal.deal_name}</h2>
+          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl mb-2 min-w-0 break-words">{deal.deal_name}</h2>
           <div className="flex items-center gap-2 flex-wrap">
             {deal.account_name && (
               <button onClick={() => navigate(`/accounts/${deal.account_id}`)}
-                className="text-arkalon-blue text-sm hover:underline font-opensans font-semibold">
+                className="text-arkalon-blue text-sm hover:underline font-opensans font-semibold min-w-0 break-words text-left">
                 {deal.account_name}
               </button>
             )}

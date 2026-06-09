@@ -143,12 +143,12 @@ export default function ContactDetail() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-        <div>
+        <div className="min-w-0">
           <button onClick={() => navigate('/contacts')} className="flex items-center gap-1 text-arkalon-blue text-sm hover:underline font-opensans mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Contacts
           </button>
-          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl">{fullName}</h2>
-          {contact.title && <p className="text-slate-500 font-opensans text-sm mt-0.5">{contact.title}</p>}
+          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl min-w-0 break-words">{fullName}</h2>
+          {contact.title && <p className="text-slate-500 font-opensans text-sm mt-0.5 break-words">{contact.title}</p>}
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Button variant="secondary" size="sm" onClick={() => setShowBrief(true)}>

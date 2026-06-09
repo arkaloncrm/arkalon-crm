@@ -151,12 +151,12 @@ export default function AccountDetail() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-        <div>
+        <div className="min-w-0">
           <button onClick={() => navigate('/accounts')} className="flex items-center gap-1 text-arkalon-blue text-sm hover:underline font-opensans mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Accounts
           </button>
-          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl">{account.name}</h2>
-          {account.industry && <p className="text-slate-500 font-opensans text-sm mt-0.5">{account.industry}</p>}
+          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl min-w-0 break-words">{account.name}</h2>
+          {account.industry && <p className="text-slate-500 font-opensans text-sm mt-0.5 break-words">{account.industry}</p>}
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Button
