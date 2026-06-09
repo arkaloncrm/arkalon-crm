@@ -44,7 +44,7 @@ function FieldRow({ label, value }) {
   return (
     <div className="flex py-2 border-b border-slate-100 last:border-0">
       <span className="w-40 flex-shrink-0 text-xs text-slate-400 font-opensans uppercase tracking-wide pt-0.5">{label}</span>
-      <span className="text-sm text-slate-800 font-opensans flex-1">{value || '—'}</span>
+      <span className="text-sm text-slate-800 font-opensans flex-1 min-w-0 break-words">{value || '—'}</span>
     </div>
   );
 }
