@@ -12,6 +12,7 @@ const errorHandler = require('./middleware/errorHandler');
 
 const leadsRouter = require('./routes/leads');
 const contactsRouter = require('./routes/contacts');
+const contactImportRouter = require('./routes/contactImport');
 const accountsRouter = require('./routes/accounts');
 const dealsRouter = require('./routes/deals');
 const productsRouter = require('./routes/products');
@@ -41,6 +42,9 @@ app.use('/api/email', emailRouter); // NO authMiddleware — Mailgun has no JWT
 
 // Protected routes — JWT required
 app.use('/api/leads', authMiddleware, leadsRouter);
+// Contact Capture import — token-authenticated (IMPORT_API_TOKEN), so it must be
+// registered before the JWT-protected /api/contacts mount to win the route match.
+app.use('/api/contacts/import', contactImportRouter);
 app.use('/api/contacts', authMiddleware, contactsRouter);
 app.use('/api/accounts', authMiddleware, accountsRouter);
 app.use('/api/deals', authMiddleware, dealsRouter);
