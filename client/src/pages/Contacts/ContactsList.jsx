@@ -126,7 +126,8 @@ export default function ContactsList() {
 
   const handleSort = (col) => {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(col); setSortDir('asc'); }
+    // Date columns start newest-first; text columns start A→Z.
+    else { setSortBy(col); setSortDir(col === 'created_at' ? 'desc' : 'asc'); }
   };
 
   const handleDelete = async () => {
@@ -333,7 +334,7 @@ export default function ContactsList() {
                   { label: 'Email' },
                   { label: 'Phone' },
                   { label: 'Mobile' },
-                  { label: 'Created', sortKey: 'created_at' },
+                  { label: 'Date Added', sortKey: 'created_at' },
                   { label: 'Actions' },
                 ].map(({ label, sortKey }) => (
                   <th
