@@ -73,7 +73,8 @@ export default function AccountsList() {
 
   const handleSort = (col) => {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(col); setSortDir('asc'); }
+    // Date columns start newest-first; text columns start A→Z.
+    else { setSortBy(col); setSortDir(col === 'created_at' ? 'desc' : 'asc'); }
   };
 
   const handleDelete = async () => {
@@ -258,12 +259,12 @@ export default function AccountsList() {
                 {[
                   { label: 'Account Name', sortKey: 'name' },
                   { label: 'Business Unit', sortKey: 'business_unit' },
-                  { label: 'Industry' },
+                  { label: 'Industry', sortKey: 'industry' },
                   { label: 'Phone' },
                   { label: 'Website' },
                   { label: 'Employees' },
                   { label: 'Open Deals' },
-                  { label: 'Created', sortKey: 'created_at' },
+                  { label: 'Date Added', sortKey: 'created_at' },
                   { label: 'Actions' },
                 ].map(({ label, sortKey }) => (
                   <th

@@ -17,7 +17,7 @@ export default function AppLayout() {
         <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <TopBar onMenuClick={() => setMobileNavOpen(true)} />
-          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 sm:py-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]">
             <Outlet />
           </main>
         </div>
