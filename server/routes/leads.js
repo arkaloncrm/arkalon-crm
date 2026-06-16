@@ -161,11 +161,13 @@ router.delete('/:id', async (req, res) => {
       await client.query('BEGIN');
       const id = req.params.id;
       await client.query('DELETE FROM notes WHERE lead_id = $1', [id]);
-      await client.query('DELETE FROM activities WHERE lead_id = $1', [id]);
-      await client.query('DELETE FROM tasks WHERE lead_id = $1', [id]);
+      await client.query('UPDATE activities SET lead_id = NULL WHERE lead_id = $1', [id]);
+      await client.query('UPDATE tasks SET lead_id = NULL WHERE lead_id = $1', [id]);
       // deals.converted_from_lead_id references leads(id) with no ON DELETE rule —
       // clear it first so a lead with a converted deal can be deleted.
       await client.query('UPDATE deals SET converted_from_lead_id = NULL WHERE converted_from_lead_id = $1', [id]);
+      // research_queue.converted_lead_id has no ON DELETE rule — clear it to avoid FK violation.
+      await client.query('UPDATE research_queue SET converted_lead_id = NULL WHERE converted_lead_id = $1', [id]);
       await client.query('DELETE FROM leads WHERE id = $1', [id]);
       await client.query('COMMIT');
     } catch (err) {
