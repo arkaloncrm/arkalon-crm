@@ -27,6 +27,8 @@ const researchQueueRouter = require('./routes/researchQueue');
 const scanRouter = require('./routes/scan');
 const myDayRouter = require('./routes/myDay');
 const emailRouter = require('./routes/email');
+const googleAuthRouter = require('./routes/googleAuth');
+const driveRouter = require('./routes/driveAttachments');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +39,8 @@ app.use(express.json({ limit: '5mb' }));
 
 // Public routes
 app.use('/api/auth', authRouter);
+// Google OAuth callback — MUST be public (plain browser GET, no Authorization header)
+app.get('/api/auth/google/callback', googleAuthRouter.callback);
 app.use('/api/ai', aiIngestRouter);
 app.use('/api/email', emailRouter); // NO authMiddleware — Mailgun has no JWT
 
@@ -58,6 +62,8 @@ app.use('/api/validation', authMiddleware, validationRouter);
 app.use('/api/research-queue', authMiddleware, researchQueueRouter);
 app.use('/api/scan', authMiddleware, scanRouter);
 app.use('/api/my-day', authMiddleware, myDayRouter);
+app.use('/api/google', authMiddleware, googleAuthRouter);
+app.use('/api/drive', authMiddleware, driveRouter);
 
 // Serve the built React client in production (Railway single-service deploy)
 if (process.env.NODE_ENV === 'production') {

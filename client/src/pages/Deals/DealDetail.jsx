@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, Phone, Mail, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Phone, Mail, Calendar, Paperclip, ExternalLink, Upload, File } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
@@ -13,6 +13,7 @@ import ActivitiesRelatedTab from '../../components/Activities/ActivitiesRelatedT
 import TasksRelatedTab from '../../components/Tasks/TasksRelatedTab.jsx';
 import { dealsApi } from '../../api/deals.js';
 import { notesApi } from '../../api/notes.js';
+import api from '../../api/axios.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import {
   DEAL_STAGES, STAGE_COLOURS, FORECAST_COLOURS,
@@ -172,6 +173,120 @@ function NotesTab({ dealId }) {
         </div>
       )}
     </div>
+  );
+}
+
+function AttachmentsSection({ dealId }) {
+  const { addToast } = useToast();
+  const fileInputRef = useRef(null);
+  const [attachments, setAttachments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const loadAttachments = () => {
+    api.get(`/drive/attachments/deal/${dealId}`)
+      .then(res => setAttachments(res.data.data || []))
+      .catch(() => addToast('Failed to load attachments', 'error'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadAttachments(); }, [dealId]);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      await api.post(`/drive/upload/deal/${dealId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      addToast('File uploaded', 'success');
+      loadAttachments();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Upload failed', 'error');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDelete = async (attachment) => {
+    setDeletingId(attachment.id);
+    try {
+      await api.delete(`/drive/attachments/${attachment.id}`);
+      setAttachments(prev => prev.filter(a => a.id !== attachment.id));
+      addToast('Attachment deleted', 'success');
+    } catch {
+      addToast('Failed to delete attachment', 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <SectionCard title="Attachments">
+      <div className="flex justify-end mb-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleUpload}
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          <Upload className="w-3.5 h-3.5" />
+          {uploading ? 'Uploading…' : 'Upload File'}
+        </Button>
+      </div>
+      {loading ? (
+        <div className="py-4 text-slate-400 font-opensans text-sm text-center">Loading…</div>
+      ) : attachments.length === 0 ? (
+        <div className="py-4 text-center">
+          <Paperclip className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+          <p className="text-sm text-slate-400 font-opensans">No attachments yet</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {attachments.map(att => (
+            <div key={att.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <File className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <span className="text-sm font-opensans text-slate-800 truncate">{att.file_name}</span>
+                {att.mime_type && (
+                  <span className="text-xs text-slate-400 font-opensans flex-shrink-0 hidden sm:inline">
+                    {att.mime_type.split('/')[1]?.toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={att.drive_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-arkalon-blue hover:underline font-opensans"
+                >
+                  <ExternalLink className="w-3 h-3" /> Open
+                </a>
+                <button
+                  onClick={() => handleDelete(att)}
+                  disabled={deletingId === att.id}
+                  className="text-xs text-red-500 hover:underline font-opensans disabled:opacity-50"
+                >
+                  {deletingId === att.id ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
   );
 }
 
@@ -398,6 +513,9 @@ export default function DealDetail() {
               </div>
             </SectionCard>
           )}
+
+          {/* Attachments */}
+          <AttachmentsSection dealId={id} />
 
           {/* Deal Info */}
           <SectionCard title="Deal Info">

@@ -378,6 +378,22 @@ const COLUMN_MIGRATIONS = [
   `ALTER TABLE deals ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
   `ALTER TABLE deals ADD COLUMN IF NOT EXISTS commission_warning TEXT`,
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT`,
+  // Google Drive OAuth tokens (encrypted at rest)
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_access_token TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_refresh_token TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_token_expiry TIMESTAMPTZ`,
+  // Drive file attachment records
+  `CREATE TABLE IF NOT EXISTS drive_attachments (
+    id SERIAL PRIMARY KEY,
+    record_type TEXT NOT NULL,
+    record_id INTEGER NOT NULL,
+    drive_file_id TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    mime_type TEXT,
+    drive_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_drive_attachments_record ON drive_attachments(record_type, record_id)`,
 ];
 
 async function initDb() {

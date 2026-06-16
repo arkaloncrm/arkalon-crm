@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, SlidersHorizontal, Database, Upload, Download, AlertTriangle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { User, SlidersHorizontal, Database, Upload, Download, AlertTriangle, CheckCircle2, HardDrive } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { settingsApi } from '../../api/settings.js';
+import api from '../../api/axios.js';
 
 const TABS = [
   { key: 'profile', label: 'My Profile', icon: User },
@@ -29,12 +30,15 @@ function SectionCard({ title, children }) {
 function ProfileTab() {
   const { addToast } = useToast();
   const { refreshUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [form, setForm] = useState({
     name: '', email: '', avatar_initials: '',
     current_password: '', new_password: '', confirm_new_password: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(null);
+  const [googleConnecting, setGoogleConnecting] = useState(false);
 
   useEffect(() => {
     settingsApi.getProfile()
@@ -46,7 +50,31 @@ function ProfileTab() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    api.get('/google/status')
+      .then(res => setGoogleConnected(res.data.data.connected))
+      .catch(() => setGoogleConnected(false));
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get('google') === 'error') {
+      addToast('Google Drive connection failed. Please try again.', 'error');
+      setSearchParams({});
+    }
+  }, []);
+
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleConnectGoogle = async () => {
+    setGoogleConnecting(true);
+    try {
+      const res = await api.get('/google/auth-url');
+      window.location.href = res.data.data.url;
+    } catch {
+      addToast('Failed to start Google Drive connection', 'error');
+      setGoogleConnecting(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -125,6 +153,26 @@ function ProfileTab() {
           </div>
         </div>
         <p className="text-xs text-slate-400 font-opensans mt-2">New password must be at least 8 characters.</p>
+      </SectionCard>
+
+      <SectionCard title="Google Drive">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-slate-400" />
+            <span className="text-sm font-opensans text-slate-700">
+              {googleConnected === null ? 'Checking…' : googleConnected ? 'Google Drive connected' : 'Not connected'}
+            </span>
+            {googleConnected && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+          </div>
+          {!googleConnected && googleConnected !== null && (
+            <Button type="button" size="sm" variant="secondary" onClick={handleConnectGoogle} disabled={googleConnecting}>
+              {googleConnecting ? 'Redirecting…' : 'Connect Google Drive'}
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-slate-400 font-opensans mt-2">
+          Required to upload and manage file attachments on deals.
+        </p>
       </SectionCard>
 
       <div className="flex justify-end">
