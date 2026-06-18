@@ -52,7 +52,7 @@ export const PRIORITY_COLOURS = {
 export const BUSINESS_UNITS = ['ASC', 'Simply Seated'];
 
 export const LEAD_SOURCES = [
-  'Cold Outreach', 'Event Announcement', 'Referral', 'LinkedIn',
+  'Cold Outreach', 'Event Announcement', 'Referral', 'Relationship', 'LinkedIn',
   'Website', 'Partner', 'Conference', 'Other'
 ];
 
@@ -77,6 +77,11 @@ export const DEAL_TYPES = ['Direct Customer', 'Partner', 'Referral'];
 export const CONTACT_ROLES = ['Primary', 'Operations', 'Billing', 'Technical', 'Executive', 'Other'];
 
 export const UNIT_TYPES = ['per month', 'per seat/month', 'per day', 'per item', 'per project', 'flat fee'];
+
+export const PRODUCT_CATEGORIES = [
+  'Services', 'Software Licence', 'Professional Services', 'Hardware',
+  'Furniture Hire', 'Styling', 'Logistics', 'Event Package',
+];
 
 export const FORECAST_CATEGORIES = ['Pipeline', 'Best Case', 'Commit', 'Closed Won', 'Omitted'];
 

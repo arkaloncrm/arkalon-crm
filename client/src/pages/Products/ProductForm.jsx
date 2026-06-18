@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../components/UI/Button.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { productsApi } from '../../api/products.js';
-import { UNIT_TYPES, BUSINESS_UNITS } from '../../utils/constants.js';
+import { UNIT_TYPES, BUSINESS_UNITS, PRODUCT_CATEGORIES } from '../../utils/constants.js';
 
 const emptyForm = {
   name: '',
@@ -179,7 +179,7 @@ export default function ProductForm() {
                 onChange={e => setField('category', e.target.value)}
                 placeholder="e.g. Licences, Hardware, Services" />
               <datalist id="product-categories">
-                {categories.map(c => <option key={c} value={c} />)}
+                {[...new Set([...PRODUCT_CATEGORIES, ...categories])].map(c => <option key={c} value={c} />)}
               </datalist>
             </div>
 
