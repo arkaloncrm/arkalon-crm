@@ -74,6 +74,7 @@ const emptyForm = {
   next_action_date: '',
   description: '',
   commission_override_amount: '',
+  manual_gross_value: '',
 };
 
 export default function DealForm() {
@@ -121,6 +122,7 @@ export default function DealForm() {
           next_action_date: d.next_action_date || '',
           description: d.description || '',
           commission_override_amount: d.commission_override_amount != null ? String(d.commission_override_amount) : '',
+          manual_gross_value: d.manual_gross_value != null ? String(d.manual_gross_value) : '',
         });
         setLineItems((d.line_items || []).map(item => ({
           product_id: item.product_id || null,
@@ -343,6 +345,24 @@ export default function DealForm() {
                   onChange={e => setField('reference_no', e.target.value)}
                   placeholder="e.g. QSYD13562 or PO-10042902" />
               </div>
+
+              {form.business_unit === 'Simply Seated' && (
+                <div className="md:col-span-2">
+                  <label className={labelCls}>GROSS VALUE (EX-GST)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className={inputCls}
+                    placeholder="Enter total ex-GST value — overrides line items"
+                    value={form.manual_gross_value}
+                    onChange={e => setField('manual_gross_value', e.target.value)}
+                  />
+                  <p className="text-xs text-slate-400 font-opensans mt-1">
+                    Optional. If entered, this overrides line item totals for commission calculation.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className={labelCls}>Business Unit *</label>

@@ -38,9 +38,16 @@ function calculateDealFinancials(deal, lineItems = [], context = {}) {
 
   const monthly_recurring_revenue = deal.business_unit === 'ASC' ? recurringMonthlyTotal : 0;
 
-  const gross_total_value = deal.business_unit === 'ASC'
-    ? r((monthly_recurring_revenue * termMonths) + nonRecurringTotal)
-    : r(recurringMonthlyTotal + nonRecurringTotal);
+  const hasManualGross =
+    deal.manual_gross_value !== null &&
+    deal.manual_gross_value !== undefined &&
+    String(deal.manual_gross_value).trim() !== '';
+
+  const gross_total_value = hasManualGross
+    ? r(Number(deal.manual_gross_value))
+    : deal.business_unit === 'ASC'
+      ? r((monthly_recurring_revenue * termMonths) + nonRecurringTotal)
+      : r(recurringMonthlyTotal + nonRecurringTotal);
 
   const probability = STAGE_MAP[deal.stage]?.probability ?? 10;
   const forecast_category = STAGE_MAP[deal.stage]?.forecast_category ?? 'Pipeline';

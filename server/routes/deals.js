@@ -236,6 +236,7 @@ router.get('/', async (req, res) => {
         deals.business_unit,
         deals.deal_type,
         deals.gross_total_value,
+        deals.manual_gross_value,
         deals.monthly_recurring_revenue,
         deals.commission_percentage,
         deals.commission_amount,
@@ -282,6 +283,7 @@ router.get('/:id', async (req, res) => {
         deals.business_unit,
         deals.deal_type,
         deals.gross_total_value,
+        deals.manual_gross_value,
         deals.monthly_recurring_revenue,
         deals.commission_percentage,
         deals.commission_amount,
@@ -536,11 +538,11 @@ router.post('/', async (req, res) => {
         INSERT INTO deals (
           deal_name, account_id, stage, probability, forecast_category,
           close_date, lead_source, business_unit, deal_type,
-          gross_total_value, monthly_recurring_revenue, commission_percentage,
+          gross_total_value, manual_gross_value, monthly_recurring_revenue, commission_percentage,
           commission_amount, commission_override_amount, contract_term_months,
           total_contract_earnings, weighted_value,
           reference_no, description, next_action, next_action_date, deal_owner_id, commission_warning
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
       `), [
         safeBody.deal_name,
@@ -553,6 +555,7 @@ router.post('/', async (req, res) => {
         safeBody.business_unit,
         safeBody.deal_type || null,
         financials.gross_total_value,
+        normaliseOverrideAmount(safeBody.manual_gross_value),
         financials.monthly_recurring_revenue,
         financials.commission_percentage,
         financials.commission_amount,
@@ -638,6 +641,7 @@ router.put('/:id', async (req, res) => {
           close_date = ?, lead_source = ?,
           business_unit = ?, deal_type = ?,
           gross_total_value = ?,
+          manual_gross_value = ?,
           monthly_recurring_revenue = ?,
           commission_percentage = ?,
           commission_amount = ?,
@@ -662,6 +666,7 @@ router.put('/:id', async (req, res) => {
         safeBody.business_unit,
         safeBody.deal_type || null,
         financials.gross_total_value,
+        normaliseOverrideAmount(safeBody.manual_gross_value),
         financials.monthly_recurring_revenue,
         financials.commission_percentage,
         financials.commission_amount,
