@@ -465,6 +465,11 @@ export default function DealDetail() {
                 <div className="text-4xl font-montserrat font-bold leading-none mb-2" style={{ color: '#0073C6' }}>
                   {formatCurrency(deal.total_contract_earnings)}
                 </div>
+                {deal.contract_term_months > 1 && deal.commission_amount > 0 && (
+                  <div className="text-sm text-slate-500 font-opensans mt-1">
+                    {formatCurrency(deal.commission_amount / deal.contract_term_months)}/mo over {deal.contract_term_months} months
+                  </div>
+                )}
                 <div className="text-sm text-slate-500 font-opensans">{deal.commission_basis}</div>
                 {deal.commission_warning === 'beyond_3_year_cap' && (
                   <div className="text-xs font-opensans text-amber-600 mt-2">
