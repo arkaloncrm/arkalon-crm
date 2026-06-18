@@ -353,6 +353,11 @@ export default function DealDetail() {
 
   const isASC = deal.business_unit === 'ASC';
 
+  // ASC earnings live in total_contract_earnings; SS uses the flat commission_amount.
+  const commissionForMonthly = deal.total_contract_earnings > 0
+    ? deal.total_contract_earnings
+    : deal.commission_amount;
+
   const handleCall = (phone, contactName, email) => setCall({
     phone,
     name: contactName,
@@ -465,9 +470,9 @@ export default function DealDetail() {
                 <div className="text-4xl font-montserrat font-bold leading-none mb-2" style={{ color: '#0073C6' }}>
                   {formatCurrency(deal.total_contract_earnings)}
                 </div>
-                {deal.contract_term_months > 1 && deal.commission_amount > 0 && (
+                {deal.contract_term_months > 1 && commissionForMonthly > 0 && (
                   <div className="text-sm text-slate-500 font-opensans mt-1">
-                    {formatCurrency(deal.commission_amount / deal.contract_term_months)}/mo over {deal.contract_term_months} months
+                    {formatCurrency(commissionForMonthly / deal.contract_term_months, 2)}/mo over {deal.contract_term_months} months
                   </div>
                 )}
                 <div className="text-sm text-slate-500 font-opensans">{deal.commission_basis}</div>
