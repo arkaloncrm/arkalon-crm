@@ -358,4 +358,53 @@ router.get('/commission-by-deal', async (req, res) => {
   }
 });
 
+// GET /api/reports/commission-export — monthly commission statement for one BU.
+// Closed Won deals whose close_date falls inside the requested YYYY-MM month for
+// the chosen business unit. close_date is a pure DATE, so the month-boundary
+// strings are compared directly (no UTC conversion — see note above).
+router.get('/commission-export', async (req, res) => {
+  try {
+    const validBUs = ['ASC', 'Simply Seated'];
+    const business_unit = req.query.business_unit;
+    if (!validBUs.includes(business_unit)) {
+      return res.status(400).json({ success: false, error: 'business_unit must be ASC or Simply Seated' });
+    }
+
+    const month = String(req.query.month || '');
+    const monthDt = /^\d{4}-\d{2}$/.test(month) ? DateTime.fromISO(`${month}-01`) : null;
+    if (!monthDt || !monthDt.isValid) {
+      return res.status(400).json({ success: false, error: 'month must be in YYYY-MM format' });
+    }
+    const monthStart = monthDt.startOf('month').toISODate();
+    const monthEnd = monthDt.endOf('month').toISODate();
+
+    const { rows: deals } = await pool.query(P(`
+      SELECT
+        deals.deal_name,
+        accounts.name AS account_name,
+        deals.reference_no,
+        deals.close_date,
+        deals.gross_total_value,
+        deals.commission_percentage,
+        deals.commission_amount,
+        deals.total_contract_earnings,
+        deals.monthly_recurring_revenue,
+        deals.contract_term_months,
+        deals.stage
+      FROM deals
+      LEFT JOIN accounts ON deals.account_id = accounts.id
+      WHERE deals.stage = 'Closed Won'
+        AND deals.business_unit = ?
+        AND deals.close_date IS NOT NULL
+        AND deals.close_date >= ?
+        AND deals.close_date <= ?
+      ORDER BY deals.close_date ASC
+    `), [business_unit, monthStart, monthEnd]);
+
+    res.json({ success: true, data: deals });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

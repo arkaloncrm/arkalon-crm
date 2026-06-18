@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Wallet, DollarSign, TrendingUp, Scale, Calendar, ListChecks, AlertTriangle, BarChart2, Activity } from 'lucide-react';
+import { Wallet, DollarSign, TrendingUp, Scale, Calendar, ListChecks, AlertTriangle, BarChart2, Activity, Download } from 'lucide-react';
 import CommissionEarnedReport from './CommissionEarnedReport.jsx';
 import CommissionForecastReport from './CommissionForecastReport.jsx';
 import OpenPipelineReport from './OpenPipelineReport.jsx';
@@ -9,6 +9,7 @@ import CommissionByDealReport from './CommissionByDealReport.jsx';
 import StaleDealsReport from './StaleDealsReport.jsx';
 import LeadSourceReport from './LeadSourceReport.jsx';
 import ActivitySummaryReport from './ActivitySummaryReport.jsx';
+import CommissionExportReport from './CommissionExportReport.jsx';
 
 const REPORTS = [
   {
@@ -73,6 +74,13 @@ const REPORTS = [
     icon: Activity,
     description: 'Calls, meetings and emails logged — last N days',
     component: ActivitySummaryReport,
+  },
+  {
+    id: 'commission-export',
+    label: 'Commission Export',
+    icon: Download,
+    description: 'Monthly commission statement for Simply Seated & ASC',
+    component: CommissionExportReport,
   },
 ];
 
