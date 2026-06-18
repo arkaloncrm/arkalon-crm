@@ -243,6 +243,7 @@ router.get('/', async (req, res) => {
         deals.contract_term_months,
         deals.total_contract_earnings,
         deals.weighted_value,
+        deals.reference_no,
         deals.description,
         deals.next_action,
         deals.next_action_date,
@@ -289,6 +290,7 @@ router.get('/:id', async (req, res) => {
         deals.total_contract_earnings,
         deals.weighted_value,
         deals.commission_warning,
+        deals.reference_no,
         deals.description,
         deals.executive_summary,
         deals.next_action,
@@ -537,8 +539,8 @@ router.post('/', async (req, res) => {
           gross_total_value, monthly_recurring_revenue, commission_percentage,
           commission_amount, commission_override_amount, contract_term_months,
           total_contract_earnings, weighted_value,
-          description, next_action, next_action_date, deal_owner_id, commission_warning
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          reference_no, description, next_action, next_action_date, deal_owner_id, commission_warning
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
       `), [
         safeBody.deal_name,
@@ -558,6 +560,7 @@ router.post('/', async (req, res) => {
         safeBody.contract_term_months || null,
         financials.total_contract_earnings,
         financials.weighted_value,
+        safeBody.reference_no || null,
         safeBody.description || null,
         safeBody.next_action || null,
         safeBody.next_action_date || null,
@@ -642,6 +645,7 @@ router.put('/:id', async (req, res) => {
           contract_term_months = ?,
           total_contract_earnings = ?,
           weighted_value = ?,
+          reference_no = ?,
           description = ?, next_action = ?,
           next_action_date = ?,
           commission_warning = ?,
@@ -665,6 +669,7 @@ router.put('/:id', async (req, res) => {
         safeBody.contract_term_months || null,
         financials.total_contract_earnings,
         financials.weighted_value,
+        safeBody.reference_no || null,
         safeBody.description || null,
         safeBody.next_action || null,
         safeBody.next_action_date || null,

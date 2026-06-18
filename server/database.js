@@ -377,6 +377,7 @@ const COLUMN_MIGRATIONS = [
   `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
   `ALTER TABLE deals ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
   `ALTER TABLE deals ADD COLUMN IF NOT EXISTS commission_warning TEXT`,
+  `ALTER TABLE deals ADD COLUMN IF NOT EXISTS reference_no TEXT`,
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT`,
   // Google Drive OAuth tokens (encrypted at rest)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_access_token TEXT`,

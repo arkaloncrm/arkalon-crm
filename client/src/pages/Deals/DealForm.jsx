@@ -62,6 +62,7 @@ function calcFinancials(form, lineItems) {
 
 const emptyForm = {
   deal_name: '',
+  reference_no: '',
   account_id: '',
   business_unit: '',
   stage: 'Prospect',
@@ -108,6 +109,7 @@ export default function DealForm() {
         const d = res.data.data;
         setForm({
           deal_name: d.deal_name || '',
+          reference_no: d.reference_no || '',
           account_id: d.account_id ? String(d.account_id) : '',
           business_unit: d.business_unit || '',
           stage: d.stage || 'Prospect',
@@ -333,6 +335,13 @@ export default function DealForm() {
                 <label className={labelCls}>Deal Name *</label>
                 <input className={inputCls} value={form.deal_name}
                   onChange={e => setField('deal_name', e.target.value)} required />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelCls}>Reference No.</label>
+                <input className={inputCls} value={form.reference_no}
+                  onChange={e => setField('reference_no', e.target.value)}
+                  placeholder="e.g. QSYD13562 or PO-10042902" />
               </div>
 
               <div>

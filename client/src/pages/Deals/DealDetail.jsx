@@ -520,6 +520,7 @@ export default function DealDetail() {
           {/* Deal Info */}
           <SectionCard title="Deal Info">
             <FieldRow label="Stage" value={<Badge className={STAGE_COLOURS[deal.stage] || 'bg-gray-100 text-gray-700'}>{deal.stage}</Badge>} />
+            {deal.reference_no && <FieldRow label="Reference No." value={deal.reference_no} />}
             {isASC && <FieldRow label="Deal Type" value={deal.deal_type} />}
             <FieldRow label="Close Date" value={formatDate(deal.close_date)} />
             {isASC && <FieldRow label="Contract Term" value={deal.contract_term_months ? `${deal.contract_term_months} months` : null} />}
