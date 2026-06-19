@@ -3,9 +3,28 @@ import { Phone, X, Linkedin, Mail, MessageSquare, CalendarPlus, PhoneCall } from
 import Button from './Button.jsx';
 import { activitiesApi } from '../../api/activities.js';
 import { tasksApi } from '../../api/tasks.js';
+import { picklistsApi } from '../../api/picklists.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ACTIVITY_OUTCOMES, BUSINESS_UNITS } from '../../utils/constants.js';
 import { formatDateTime, toSqliteUtcFromLocalInput } from '../../utils/formatDate.js';
+
+// Constant is mapped to {value,label} and kept as the fallback / loading state
+// so the dropdown is never empty while the picklist loads (or if the API fails).
+const asOptions = (arr) => arr.map((v) => ({ value: v, label: v }));
+
+// Shared hook so both the call-log and log-message panels read the
+// activity_outcome picklist from one place (matches ActivityForm's pattern).
+function useActivityOutcomes() {
+  const [outcomes, setOutcomes] = useState(asOptions(ACTIVITY_OUTCOMES));
+  useEffect(() => {
+    let active = true;
+    picklistsApi.get('activity_outcome')
+      .then(res => { if (active && res.data.data?.length) setOutcomes(res.data.data); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+  return outcomes;
+}
 
 // Click-to-call link. The href dials the number; the onClick opens the call
 // logging panel via the supplied onCall callback. Propagation is stopped so the
@@ -125,6 +144,7 @@ export function CallLogPanel({ call, onClose, onLogged }) {
   const [outcome, setOutcome] = useState('');
   const [notes, setNotes] = useState('');
   const [businessUnit, setBusinessUnit] = useState('');
+  const outcomes = useActivityOutcomes();
   const [saving, setSaving] = useState(false);
   // 'log' = the call log form; 'actions' = the post-call follow-up screen.
   const [view, setView] = useState('log');
@@ -361,7 +381,7 @@ export function CallLogPanel({ call, onClose, onLogged }) {
             className="w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
           >
             <option value="">Select outcome…</option>
-            {ACTIVITY_OUTCOMES.map(o => <option key={o}>{o}</option>)}
+            {outcomes.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
       </div>
@@ -410,6 +430,7 @@ export function LogMessagePanel({ record, onClose, onLogged }) {
   const [businessUnit, setBusinessUnit] = useState('');
   const [nextAction, setNextAction] = useState('');
   const [nextActionDate, setNextActionDate] = useState('');
+  const outcomes = useActivityOutcomes();
   const [saving, setSaving] = useState(false);
   // True once the Activity has saved — guards against creating it twice when
   // only the follow-up Task failed and the user retries.
@@ -554,7 +575,7 @@ export function LogMessagePanel({ record, onClose, onLogged }) {
           <label className={labelClass}>Outcome</label>
           <select value={outcome} onChange={e => setOutcome(e.target.value)} className={fieldClass}>
             <option value="">Select outcome…</option>
-            {ACTIVITY_OUTCOMES.map(o => <option key={o}>{o}</option>)}
+            {outcomes.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
