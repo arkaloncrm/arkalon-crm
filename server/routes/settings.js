@@ -291,4 +291,129 @@ router.post('/import', async (req, res) => {
   }
 });
 
+// --- Picklists --------------------------------------------------------------
+// Picklists change rarely (admin edits only) but their active values are read on
+// every form load. A small in-process memo cache keyed by list_name keeps those
+// reads off the database; any mutation clears the affected key so writes are
+// reflected immediately.
+const picklistCache = new Map();
+const clearPicklistCache = (listName) => {
+  if (listName) picklistCache.delete(listName);
+  else picklistCache.clear();
+};
+
+// GET /api/settings/picklists — all lists (incl. inactive) grouped for the UI
+router.get('/picklists', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, list_name, value, label, sort_order, is_active, is_system
+       FROM picklists
+       ORDER BY list_name, sort_order, label`
+    );
+    const grouped = {};
+    for (const row of rows) {
+      (grouped[row.list_name] = grouped[row.list_name] || []).push(row);
+    }
+    res.json({ success: true, data: grouped });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/settings/picklists/:listName — active values for a single list (cached)
+router.get('/picklists/:listName', async (req, res) => {
+  try {
+    const { listName } = req.params;
+    if (picklistCache.has(listName)) {
+      return res.json({ success: true, data: picklistCache.get(listName) });
+    }
+    const { rows } = await pool.query(
+      P(`SELECT id, value, label, sort_order, is_system
+         FROM picklists
+         WHERE list_name = ? AND is_active = true
+         ORDER BY sort_order, label`),
+      [listName]
+    );
+    picklistCache.set(listName, rows);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/settings/picklists/:listName — add a value, auto-assigning sort_order
+router.post('/picklists/:listName', async (req, res) => {
+  try {
+    const { listName } = req.params;
+    const { value, label } = req.body;
+    if (!value?.trim() || !label?.trim()) {
+      return res.status(400).json({ success: false, error: 'Value and label are required' });
+    }
+    const { rows: maxRows } = await pool.query(
+      P(`SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM picklists WHERE list_name = ?`),
+      [listName]
+    );
+    const nextOrder = maxRows[0].next;
+    // ON CONFLICT re-activates a previously soft-deleted value rather than erroring.
+    const { rows } = await pool.query(
+      P(`INSERT INTO picklists (list_name, value, label, sort_order, is_system)
+         VALUES (?, ?, ?, ?, false)
+         ON CONFLICT (list_name, value) DO UPDATE SET label = EXCLUDED.label, is_active = true
+         RETURNING id, value, label, sort_order, is_active, is_system`),
+      [listName, value.trim(), label.trim(), nextOrder]
+    );
+    clearPicklistCache(listName);
+    res.status(201).json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/settings/picklists/:listName/:id — update label, sort_order or active state
+router.put('/picklists/:listName/:id', async (req, res) => {
+  try {
+    const { listName, id } = req.params;
+    const { label, sort_order, is_active } = req.body;
+    const fields = [];
+    const values = [];
+    if (label !== undefined) { fields.push('label = ?'); values.push(label); }
+    if (sort_order !== undefined) { fields.push('sort_order = ?'); values.push(sort_order); }
+    if (is_active !== undefined) { fields.push('is_active = ?'); values.push(is_active); }
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, error: 'Nothing to update' });
+    }
+    values.push(listName, id);
+    const { rows } = await pool.query(
+      P(`UPDATE picklists SET ${fields.join(', ')}
+         WHERE list_name = ? AND id = ?
+         RETURNING id, value, label, sort_order, is_active, is_system`),
+      values
+    );
+    if (rows.length === 0) return res.status(404).json({ success: false, error: 'Picklist value not found' });
+    clearPicklistCache(listName);
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/settings/picklists/:listName/:id — soft delete only (set is_active = false)
+// to preserve referential integrity with records already using the value.
+router.delete('/picklists/:listName/:id', async (req, res) => {
+  try {
+    const { listName, id } = req.params;
+    const { rows } = await pool.query(
+      P(`UPDATE picklists SET is_active = false
+         WHERE list_name = ? AND id = ?
+         RETURNING id`),
+      [listName, id]
+    );
+    if (rows.length === 0) return res.status(404).json({ success: false, error: 'Picklist value not found' });
+    clearPicklistCache(listName);
+    res.json({ success: true, message: 'Value deactivated' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

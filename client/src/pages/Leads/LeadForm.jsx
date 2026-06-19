@@ -4,12 +4,18 @@ import { ArrowLeft } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import DuplicateWarning from '../../components/UI/DuplicateWarning.jsx';
 import { leadsApi } from '../../api/leads.js';
+import { picklistsApi } from '../../api/picklists.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useDuplicateCheck } from '../../hooks/useDuplicateCheck.js';
 import {
   BUSINESS_UNITS, LEAD_STATUSES, LEAD_SOURCES,
   INDUSTRIES, TARGET_TYPES, PRIORITY_COLOURS,
 } from '../../utils/constants.js';
+
+// Hardcoded constants are mapped to {value,label} and kept as the fallback /
+// loading state so the dropdowns are never empty while the picklist API loads
+// (or if it fails).
+const asOptions = (arr) => arr.map((v) => ({ value: v, label: v }));
 
 const SALUTATIONS = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
 const PRIORITIES = ['P1 - Act Now', 'P2 - This Month', 'P3 - Pipeline', 'Parked'];
@@ -48,6 +54,20 @@ export default function LeadForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+
+  const [leadSources, setLeadSources] = useState(asOptions(LEAD_SOURCES));
+  const [industries, setIndustries] = useState(asOptions(INDUSTRIES));
+
+  useEffect(() => {
+    let active = true;
+    picklistsApi.get('lead_source')
+      .then(res => { if (active && res.data.data?.length) setLeadSources(res.data.data); })
+      .catch(() => {});
+    picklistsApi.get('industry')
+      .then(res => { if (active && res.data.data?.length) setIndustries(res.data.data); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const { matches: duplicates, check: checkDuplicates, clear: clearDuplicates } = useDuplicateCheck(
     'lead',
@@ -197,7 +217,7 @@ export default function LeadForm() {
             <Field label="Lead Source">
               <select className={selectCls()} value={form.lead_source} onChange={set('lead_source')}>
                 <option value="">—</option>
-                {LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+                {leadSources.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </Field>
             <Field label="Lead Status" required error={errors.lead_status}>
@@ -236,7 +256,7 @@ export default function LeadForm() {
             <Field label="Industry">
               <select className={selectCls()} value={form.industry} onChange={set('industry')}>
                 <option value="">—</option>
-                {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
+                {industries.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
               </select>
             </Field>
             <Field label="Employee Count">

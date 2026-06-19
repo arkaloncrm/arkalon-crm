@@ -6,12 +6,17 @@ import { leadsApi } from '../../api/leads.js';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
 import { dealsApi } from '../../api/deals.js';
+import { picklistsApi } from '../../api/picklists.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ACTIVITY_TYPES, ACTIVITY_OUTCOMES, BUSINESS_UNITS } from '../../utils/constants.js';
 import { toSqliteUtcFromLocalInput, fromSqliteUtcToDatetimeLocal } from '../../utils/formatDate.js';
 
 const DIRECTION_OPTIONS = ['Outbound', 'Inbound'];
 const STATUS_OPTIONS = ['Planned', 'Held', 'Not Held'];
+
+// Constants are mapped to {value,label} and kept as the fallback / loading state
+// so the dropdowns are never empty while picklists load (or if the API fails).
+const asOptions = (arr) => arr.map((v) => ({ value: v, label: v }));
 
 const EMPTY_FORM = {
   type: '', subject: '', direction: 'Outbound', status: 'Held', outcome: '',
@@ -37,6 +42,21 @@ export default function ActivityForm() {
   const [allAccounts, setAllAccounts] = useState([]);
   const [allDeals, setAllDeals] = useState([]);
   const [filteredContacts, setFilteredContacts] = useState([]);
+
+  const [activityTypes, setActivityTypes] = useState(asOptions(ACTIVITY_TYPES));
+  const [activityOutcomes, setActivityOutcomes] = useState(asOptions(ACTIVITY_OUTCOMES));
+
+  // Load picklists — fall back to constants on failure / while loading
+  useEffect(() => {
+    let active = true;
+    picklistsApi.get('activity_type')
+      .then(res => { if (active && res.data.data?.length) setActivityTypes(res.data.data); })
+      .catch(() => {});
+    picklistsApi.get('activity_outcome')
+      .then(res => { if (active && res.data.data?.length) setActivityOutcomes(res.data.data); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   // Load lookup data
   useEffect(() => {
@@ -184,7 +204,7 @@ export default function ActivityForm() {
             <select value={form.type} onChange={e => handleChange('type', e.target.value)} required
               className="w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30">
               <option value="">Select type…</option>
-              {ACTIVITY_TYPES.map(t => <option key={t}>{t}</option>)}
+              {activityTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
 
@@ -217,7 +237,7 @@ export default function ActivityForm() {
             <select value={form.outcome} onChange={e => handleChange('outcome', e.target.value)}
               className="w-full px-3 py-2 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30">
               <option value="">—</option>
-              {ACTIVITY_OUTCOMES.map(o => <option key={o}>{o}</option>)}
+              {activityOutcomes.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
 

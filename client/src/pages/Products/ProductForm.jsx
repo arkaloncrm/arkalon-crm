@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../components/UI/Button.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { productsApi } from '../../api/products.js';
+import { picklistsApi } from '../../api/picklists.js';
 import { UNIT_TYPES, BUSINESS_UNITS, PRODUCT_CATEGORIES } from '../../utils/constants.js';
 
 const emptyForm = {
@@ -29,6 +30,9 @@ export default function ProductForm() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
+  // Picklist-driven category options, with the PRODUCT_CATEGORIES constant as
+  // the fallback / loading state so the datalist is never empty.
+  const [categoryOptions, setCategoryOptions] = useState(PRODUCT_CATEGORIES);
   const [skuError, setSkuError] = useState('');
   const [skuChecking, setSkuChecking] = useState(false);
 
@@ -36,6 +40,16 @@ export default function ProductForm() {
     productsApi.getCategories()
       .then(res => setCategories(res.data.data || []))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    picklistsApi.get('product_category')
+      .then(res => {
+        if (active && res.data.data?.length) setCategoryOptions(res.data.data.map(o => o.value));
+      })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -179,7 +193,7 @@ export default function ProductForm() {
                 onChange={e => setField('category', e.target.value)}
                 placeholder="e.g. Licences, Hardware, Services" />
               <datalist id="product-categories">
-                {[...new Set([...PRODUCT_CATEGORIES, ...categories])].map(c => <option key={c} value={c} />)}
+                {[...new Set([...categoryOptions, ...categories])].map(c => <option key={c} value={c} />)}
               </datalist>
             </div>
 

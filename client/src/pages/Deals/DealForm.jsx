@@ -7,12 +7,17 @@ import { dealsApi } from '../../api/deals.js';
 import { productsApi } from '../../api/products.js';
 import { accountsApi } from '../../api/accounts.js';
 import { contactsApi } from '../../api/contacts.js';
+import { picklistsApi } from '../../api/picklists.js';
 import {
   DEAL_STAGES, DEAL_TYPES, CONTACT_ROLES, UNIT_TYPES, STAGE_MAP, LEAD_SOURCES, BUSINESS_UNITS,
 } from '../../utils/constants.js';
 import { formatCurrency, formatMrr } from '../../utils/formatCurrency.js';
 
 const r = (v) => Math.round((Number(v) || 0) * 100) / 100;
+
+// Constants are mapped to {value,label} and kept as the fallback / loading state
+// so the dropdowns are never empty while picklists load (or if the API fails).
+const asOptions = (arr) => arr.map((v) => ({ value: v, label: v }));
 
 function calcFinancials(form, lineItems) {
   const bu = form.business_unit;
@@ -98,9 +103,24 @@ export default function DealForm() {
   const [loading, setLoading] = useState(isEdit);
   const [buLocked, setBuLocked] = useState(false);
 
+  const [leadSources, setLeadSources] = useState(asOptions(LEAD_SOURCES));
+
   useEffect(() => {
     productsApi.getAll({ is_active: 1 }).then(res => setProducts(res.data.data || [])).catch(() => {});
     accountsApi.getAll().then(res => setAccounts(res.data.data || [])).catch(() => {});
+  }, []);
+
+  // NOTE: only lead_source is picklist-driven here. The "Linked Contacts" role
+  // select below maps to deal_contacts.role, which has its own DB CHECK
+  // constraint (Primary/Operations/Billing/Technical/Executive/Other) — a
+  // different concept from the contact_role picklist — so it stays on the
+  // CONTACT_ROLES constant.
+  useEffect(() => {
+    let active = true;
+    picklistsApi.get('lead_source')
+      .then(res => { if (active && res.data.data?.length) setLeadSources(res.data.data); })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -464,7 +484,7 @@ export default function DealForm() {
                 <select className={inputCls} value={form.lead_source}
                   onChange={e => setField('lead_source', e.target.value)}>
                   <option value="">— Select —</option>
-                  {LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+                  {leadSources.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
 
