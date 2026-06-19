@@ -323,6 +323,20 @@ const SCHEMA = `
     pushed_from TEXT CHECK (pushed_from IN ('today', 'tomorrow'))
   );
 
+  CREATE TABLE IF NOT EXISTS picklists (
+    id SERIAL PRIMARY KEY,
+    list_name TEXT NOT NULL,
+    value TEXT NOT NULL,
+    label TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    is_system BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(list_name, value)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_picklists_list_name ON picklists(list_name, is_active, sort_order);
+
   -- leads.converted_deal_id references deals(id), but deals is created after
   -- leads, so the foreign key is attached once both tables exist.
   DO $$ BEGIN
@@ -370,6 +384,35 @@ async function seedDefaultProducts() {
   if (seeded > 0) console.log(`[DB] Default products seeded (${seeded})`);
 }
 
+// Seed the system picklists on first run. Each value is upserted so re-runs
+// keep the canonical label in sync without disturbing custom (non-system)
+// values an admin may have added, and without resurrecting ones they soft-deleted.
+const PICKLIST_SEED = {
+  lead_source: ['Cold Outreach', 'Event Announcement', 'Referral', 'Relationship', 'LinkedIn', 'Website', 'Partner', 'Conference', 'Other'],
+  industry: ['Technology', 'Financial Services', 'Government', 'Healthcare', 'Legal', 'Education', 'Retail', 'Hospitality', 'Events', 'Manufacturing', 'Media', 'Telecommunications', 'Other'],
+  activity_type: ['Call', 'Meeting', 'Email', 'Demo', 'Follow-up', 'Other'],
+  activity_outcome: ['Positive', 'Neutral', 'No Answer', 'Left Voicemail', 'Requested Info', 'Not Interested', 'Other'],
+  product_category: ['Services', 'Software Licence', 'Professional Services', 'Hardware', 'Furniture Hire', 'Styling', 'Logistics', 'Event Package'],
+  contact_role: ['Economic Buyer', 'Champion', 'Technical Contact', 'Gatekeeper', 'End User', 'Other'],
+};
+
+async function seedPicklists() {
+  let seeded = 0;
+  for (const [listName, values] of Object.entries(PICKLIST_SEED)) {
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      const { rowCount } = await pool.query(
+        P(`INSERT INTO picklists (list_name, value, label, sort_order, is_system)
+           VALUES (?, ?, ?, ?, true)
+           ON CONFLICT (list_name, value) DO UPDATE SET label = EXCLUDED.label`),
+        [listName, v, v, i]
+      );
+      seeded += rowCount;
+    }
+  }
+  if (seeded > 0) console.log(`[DB] Picklists seeded/updated (${seeded} values)`);
+}
+
 // Additive column migrations — safe no-ops once the column exists.
 const COLUMN_MIGRATIONS = [
   `ALTER TABLE leads ADD COLUMN IF NOT EXISTS executive_summary TEXT`,
@@ -396,6 +439,11 @@ const COLUMN_MIGRATIONS = [
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_drive_attachments_record ON drive_attachments(record_type, record_id)`,
+  // activities.type is now driven by the activity_type picklist, whose seed
+  // values (e.g. 'Follow-up') differ from the original hardcoded CHECK list.
+  // Drop the CHECK so the picklist is the source of truth; validation moves to
+  // the picklist manager. Existing rows are unaffected.
+  `ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_type_check`,
 ];
 
 async function initDb() {
@@ -405,7 +453,8 @@ async function initDb() {
   }
   await seedDefaultUser();
   await seedDefaultProducts();
-  console.log('[DB] PostgreSQL schema initialised (14 tables ready)');
+  await seedPicklists();
+  console.log('[DB] PostgreSQL schema initialised (15 tables ready)');
 }
 
 module.exports = { pool, P, initDb };

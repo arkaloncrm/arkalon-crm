@@ -4,9 +4,14 @@ import { ArrowLeft } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import DuplicateWarning from '../../components/UI/DuplicateWarning.jsx';
 import { accountsApi } from '../../api/accounts.js';
+import { picklistsApi } from '../../api/picklists.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useDuplicateCheck } from '../../hooks/useDuplicateCheck.js';
 import { BUSINESS_UNITS, INDUSTRIES } from '../../utils/constants.js';
+
+// Constant is mapped to {value,label} and kept as the fallback / loading state
+// so the dropdown is never empty while the picklist loads (or if it fails).
+const asOptions = (arr) => arr.map((v) => ({ value: v, label: v }));
 
 function Field({ label, required, error, children }) {
   return (
@@ -42,6 +47,15 @@ export default function AccountForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+  const [industries, setIndustries] = useState(asOptions(INDUSTRIES));
+
+  useEffect(() => {
+    let active = true;
+    picklistsApi.get('industry')
+      .then(res => { if (active && res.data.data?.length) setIndustries(res.data.data); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const { matches: duplicates, check: checkDuplicates, clear: clearDuplicates } = useDuplicateCheck(
     'account',
@@ -146,7 +160,7 @@ export default function AccountForm() {
             <Field label="Industry">
               <select className={selectCls()} value={form.industry} onChange={set('industry')}>
                 <option value="">—</option>
-                {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
+                {industries.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
               </select>
             </Field>
             <Field label="Employee Count">
