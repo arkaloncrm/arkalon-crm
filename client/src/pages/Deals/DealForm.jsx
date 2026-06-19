@@ -9,7 +9,7 @@ import { accountsApi } from '../../api/accounts.js';
 import { contactsApi } from '../../api/contacts.js';
 import { picklistsApi } from '../../api/picklists.js';
 import {
-  DEAL_STAGES, DEAL_TYPES, CONTACT_ROLES, UNIT_TYPES, STAGE_MAP, LEAD_SOURCES, BUSINESS_UNITS,
+  DEAL_STAGES, DEAL_TYPES, CONTACT_ROLES, UNIT_TYPES, STAGE_MAP, LEAD_SOURCES, BUSINESS_UNITS, INDUSTRIES,
 } from '../../utils/constants.js';
 import { formatCurrency, formatMrr } from '../../utils/formatCurrency.js';
 
@@ -104,21 +104,29 @@ export default function DealForm() {
   const [buLocked, setBuLocked] = useState(false);
 
   const [leadSources, setLeadSources] = useState(asOptions(LEAD_SOURCES));
+  const [industries, setIndustries] = useState(asOptions(INDUSTRIES));
+
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [newAccount, setNewAccount] = useState({ name: '', industry: '', website: '', business_unit: '' });
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => {
     productsApi.getAll({ is_active: 1 }).then(res => setProducts(res.data.data || [])).catch(() => {});
     accountsApi.getAll().then(res => setAccounts(res.data.data || [])).catch(() => {});
   }, []);
 
-  // NOTE: only lead_source is picklist-driven here. The "Linked Contacts" role
-  // select below maps to deal_contacts.role, which has its own DB CHECK
-  // constraint (Primary/Operations/Billing/Technical/Executive/Other) — a
-  // different concept from the contact_role picklist — so it stays on the
-  // CONTACT_ROLES constant.
+  // NOTE: lead_source and industry are picklist-driven (industry feeds the inline
+  // "create account" panel). The "Linked Contacts" role select below maps to
+  // deal_contacts.role, which has its own DB CHECK constraint
+  // (Primary/Operations/Billing/Technical/Executive/Other) — a different concept
+  // from the contact_role picklist — so it stays on the CONTACT_ROLES constant.
   useEffect(() => {
     let active = true;
     picklistsApi.get('lead_source')
       .then(res => { if (active && res.data.data?.length) setLeadSources(res.data.data); })
+      .catch(() => {});
+    picklistsApi.get('industry')
+      .then(res => { if (active && res.data.data?.length) setIndustries(res.data.data); })
       .catch(() => {});
     return () => { active = false; };
   }, []);
@@ -212,6 +220,54 @@ export default function DealForm() {
     setAccountSearch('');
     setContacts([]);
     setContactRoles([]);
+  };
+
+  const openCreateAccount = () => {
+    setNewAccount({
+      name: accountSearch.trim(),
+      industry: '',
+      website: '',
+      business_unit: form.business_unit || '',
+    });
+    setShowCreateAccount(true);
+  };
+
+  // Non-blocking duplicate check across ALL accounts (the `accounts` list is
+  // loaded unfiltered, so this catches same-name accounts in any business unit).
+  // The account API has no name uniqueness, so we warn but never block creation.
+  const duplicateAccount = useMemo(() => {
+    const q = newAccount.name.trim().toLowerCase();
+    if (!q) return null;
+    return accounts.find(a => a.name.trim().toLowerCase() === q) || null;
+  }, [accounts, newAccount.name]);
+
+  const handleCreateAccount = async () => {
+    const name = newAccount.name.trim();
+    if (!name) { addToast('Account name is required', 'error'); return; }
+    if (!newAccount.business_unit) { addToast('Select a business unit for the new account', 'error'); return; }
+    setCreatingAccount(true);
+    try {
+      const res = await accountsApi.create({
+        name,
+        industry: newAccount.industry || null,
+        website: newAccount.website.trim() || null,
+        business_unit: newAccount.business_unit,
+      });
+      const created = res.data.data;
+      // Make the new account available locally, then select it directly (cannot
+      // rely on handleAccountChange's lookup — setAccounts hasn't flushed yet).
+      setAccounts(prev => [...prev, created]);
+      setForm(f => ({ ...f, account_id: String(created.id) }));
+      setAccountSearch(created.name);
+      setContactRoles([]);
+      loadContactsForAccount(created.id);
+      setShowCreateAccount(false);
+      addToast('Account created', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Failed to create account', 'error');
+    } finally {
+      setCreatingAccount(false);
+    }
   };
 
   const filteredAccounts = useMemo(() => {
@@ -430,6 +486,70 @@ export default function DealForm() {
                             <span className="ml-2 text-xs text-slate-400">{a.business_unit}</span>
                           </button>
                         ))}
+                      </div>
+                    )}
+                    {accountSearch.trim() && filteredAccounts.length === 0 && !showCreateAccount && (
+                      <button type="button" onClick={openCreateAccount}
+                        className="mt-1 w-full flex items-center gap-1 text-left px-3 py-2 text-sm font-opensans text-arkalon-blue border border-arkalon-lightgrey rounded hover:bg-blue-50 transition-colors">
+                        <Plus className="w-3.5 h-3.5" /> Create new account “{accountSearch.trim()}”
+                      </button>
+                    )}
+                    {showCreateAccount && (
+                      <div className="mt-2 border border-arkalon-lightgrey rounded-lg bg-slate-50 p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-montserrat font-semibold text-arkalon-navy uppercase tracking-wide">New Account</span>
+                          <button type="button" onClick={() => setShowCreateAccount(false)}
+                            className="p-1 text-slate-400 hover:text-red-500 transition-colors" aria-label="Cancel new account">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className={labelCls}>Account Name *</label>
+                          <input className={inputCls} value={newAccount.name}
+                            onChange={e => setNewAccount(n => ({ ...n, name: e.target.value }))} />
+                          {duplicateAccount && (
+                            <p className="text-xs text-amber-600 font-opensans mt-1">
+                              An account named “{duplicateAccount.name}” already exists ({duplicateAccount.business_unit}) — creating this will make a duplicate.
+                            </p>
+                          )}
+                        </div>
+
+                        {!form.business_unit && (
+                          <div>
+                            <label className={labelCls}>Business Unit *</label>
+                            <select className={inputCls} value={newAccount.business_unit}
+                              onChange={e => setNewAccount(n => ({ ...n, business_unit: e.target.value }))}>
+                              <option value="">— Select —</option>
+                              {BUSINESS_UNITS.map(bu => <option key={bu}>{bu}</option>)}
+                            </select>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className={labelCls}>Industry</label>
+                          <select className={inputCls} value={newAccount.industry}
+                            onChange={e => setNewAccount(n => ({ ...n, industry: e.target.value }))}>
+                            <option value="">—</option>
+                            {industries.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className={labelCls}>Website</label>
+                          <input className={inputCls} value={newAccount.website}
+                            onChange={e => setNewAccount(n => ({ ...n, website: e.target.value }))}
+                            placeholder="https://" />
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="secondary" size="sm" onClick={() => setShowCreateAccount(false)}>
+                            Cancel
+                          </Button>
+                          <Button type="button" size="sm" onClick={handleCreateAccount} disabled={creatingAccount}>
+                            {creatingAccount ? 'Creating…' : 'Create & Select'}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
