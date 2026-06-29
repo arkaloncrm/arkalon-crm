@@ -57,8 +57,8 @@ function ArkalonLogo({ collapsed }) {
 const navLinkClass = ({ isActive }) =>
   `flex items-center gap-3 px-4 py-3 md:py-2.5 mx-1 my-0.5 rounded transition-colors
    ${isActive
-    ? 'arkalon-sidebar-link-active pl-[13px]'
-    : 'border-l-[3px] border-transparent hover:bg-white/10'
+    ? 'arkalon-sidebar-link-active pl-[13px] text-white'
+    : 'border-l-[3px] border-transparent text-[#C7DCF2] hover:bg-white/[0.08] hover:text-white'
   }`;
 
 export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
@@ -101,9 +101,9 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         <nav className="flex-1 overflow-y-auto py-2">
           {navItems.map(({ label, icon: Icon, path }) => (
             <NavLink key={path} to={path} onClick={onClose} className={navLinkClass}>
-              <Icon className="w-4 h-4 text-white flex-shrink-0" />
+              <Icon className="w-4 h-4 flex-shrink-0" />
               {!collapsed && (
-                <span className="font-montserrat font-semibold text-white text-[13px] truncate">
+                <span className="font-montserrat font-semibold text-[13px] truncate">
                   {label}
                 </span>
               )}
@@ -114,9 +114,9 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         {/* Bottom: Settings + collapse */}
         <div className="border-t border-white/10 py-2">
           <NavLink to="/settings" onClick={onClose} className={navLinkClass}>
-            <Settings className="w-4 h-4 text-white flex-shrink-0" />
+            <Settings className="w-4 h-4 flex-shrink-0" />
             {!collapsed && (
-              <span className="font-montserrat font-semibold text-white text-[13px]">Settings</span>
+              <span className="font-montserrat font-semibold text-[13px]">Settings</span>
             )}
           </NavLink>
 

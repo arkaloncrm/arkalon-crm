@@ -1,0 +1,106 @@
+/* ===========================================================================
+   Arkalon CRM — design-token foundation (UI revamp).
+   CSS custom properties consumed by the new bento-style surfaces.
+   Adding tokens here changes nothing until a component references them.
+   ======================================================================== */
+
+:root {
+  /* Brand core */
+  --brand-navy: #002B5C;
+  --brand-blue: #0073C6;
+  --brand-cyan: #00AEEF;
+
+  /* Sidebar gradient */
+  --sidebar-gradient: linear-gradient(180deg, #002B5C 0%, #014A92 55%, #0073C6 100%);
+
+  /* Business unit (functional colour) */
+  --bu-asc: #0073C6;
+  --bu-asc-bg: #E7F1FB;
+  --bu-ss: #F5921E;
+  --bu-ss-bg: #FDF0E1;
+
+  /* Surface & canvas */
+  --canvas: #F4F7FB;
+  --surface: #FFFFFF;
+  --surface-subtle: #F9FBFD;
+  --surface-sunken: #EEF3F9;
+
+  /* Borders */
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --border-focus: #0073C6;
+
+  /* Text */
+  --text-primary: #0F1F33;
+  --text-body: #334155;
+  --text-muted: #64748B;
+  --text-faint: #94A3B8;
+  --text-on-brand: #FFFFFF;
+  --text-nav: #C7DCF2;
+
+  /* Semantic */
+  --success: #16A34A;
+  --success-bg: #E7F6EC;
+  --danger: #DC2626;
+  --danger-bg: #FBEAEA;
+  --warning: #F5921E;
+  --warning-bg: #FDF0E1;
+  --info: #0073C6;
+  --info-bg: #E7F1FB;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(15, 31, 51, 0.04);
+  --shadow-card: 0 1px 3px rgba(15, 31, 51, 0.06), 0 1px 2px rgba(15, 31, 51, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 31, 51, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 31, 51, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(0, 115, 198, 0.18);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* Layout */
+  --sidebar-width: 232px;
+  --topbar-height: 64px;
+}
+
+/* ---------------------------------------------------------------------------
+   Bento surfaces — NEW classes, deliberately separate from the shared
+   .arkalon-page / .arkalon-card so the Reports module keeps its current look.
+   Scope: Dashboard + Dashboard-only child components.
+   ------------------------------------------------------------------------- */
+
+/* Cool light canvas that bleeds edge-to-edge through <main>'s padding. */
+.bento-page {
+  background: var(--canvas);
+  margin: -1rem;
+  padding: 1rem;
+  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
+}
+
+@media (min-width: 640px) {
+  .bento-page {
+    margin: -1.5rem;
+    padding: 1.5rem;
+  }
+}
+
+/* Crisp white bento tile with soft navy-tinted elevation. */
+.bento-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* Small uppercase section label. */
+.bento-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

@@ -27,8 +27,8 @@ const STATUS_COLOURS = {
 };
 
 const BU_COLOURS = {
-  'ASC': 'bg-blue-100 text-blue-700',
-  'Simply Seated': 'bg-teal-100 text-teal-700',
+  'ASC': 'bg-[#E7F1FB] text-[#0073C6]',
+  'Simply Seated': 'bg-[#FDF0E1] text-[#F5921E]',
 };
 
 const PRIORITY_COLOURS = {
@@ -129,13 +129,13 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="arkalon-page">
+    <div className="bento-page">
       {/* Commission Pipeline — weighted commission from open deals by close date */}
       <div
-        className="arkalon-copper-rule rounded-lg px-5 py-4 mb-6 text-white"
-        style={{ background: 'var(--arkalon-navy-dark)' }}
+        className="px-5 py-4 mb-6 text-white shadow-card"
+        style={{ background: 'linear-gradient(135deg,#002B5C 0%,#0073C6 100%)', borderRadius: 'var(--radius-lg)' }}
       >
-        <div className="text-[11px] font-montserrat font-bold uppercase tracking-[0.2em] text-white/50 mb-3">
+        <div className="text-[11px] font-montserrat font-bold uppercase tracking-[0.2em] text-white/60 mb-3">
           My Commission Pipeline
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/15">
@@ -189,22 +189,22 @@ export default function Dashboard() {
       </div>
 
       {/* Commission Summary */}
-      <div className="bg-white border-2 border-arkalon-blue rounded-lg px-4 sm:px-5 py-4 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="bento-card border-l-4 border-l-arkalon-blue px-4 sm:px-5 py-4 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="text-xs font-montserrat font-bold text-slate-400 uppercase tracking-widest mb-1">Total Projected Commission</div>
-          <div className="text-2xl sm:text-3xl font-montserrat font-bold" style={{ color: '#0073C6' }}>
+          <div className="bento-label mb-1">Total Projected Commission</div>
+          <div className="text-2xl sm:text-3xl font-montserrat font-bold text-brand-blue">
             {dealSummary ? formatCurrencyCompact(dealSummary.projected_commission_total) : '—'}
           </div>
-          <div className="text-xs text-slate-400 font-opensans mt-1">
+          <div className="text-xs text-ink-faint font-opensans mt-1">
             Across {dealSummary?.open_deal_count ?? '—'} open deals
           </div>
         </div>
         <div className="sm:text-right">
-          <div className="text-xs font-montserrat font-semibold text-slate-400 uppercase tracking-wide mb-1">Open Pipeline</div>
-          <div className="text-xl font-montserrat font-bold text-arkalon-navy">
+          <div className="bento-label mb-1">Open Pipeline</div>
+          <div className="text-xl font-montserrat font-bold text-ink-primary">
             {dealSummary ? formatCurrencyCompact(dealSummary.open_gross_total) : '—'}
           </div>
-          <div className="text-xs text-slate-400 font-opensans mt-1">
+          <div className="text-xs text-ink-faint font-opensans mt-1">
             {dealSummary ? formatCurrencyCompact(dealSummary.open_weighted_total) : '—'} weighted
           </div>
         </div>
@@ -214,9 +214,9 @@ export default function Dashboard() {
       <DashboardCharts />
 
       {/* Top Open Deals */}
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden mb-4">
+      <div className="bento-card overflow-hidden mb-4">
         <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey">
-          <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Top Open Deals</h3>
+          <h3 className="bento-label">Top Open Deals</h3>
           <button onClick={() => navigate('/deals')} className="text-xs text-arkalon-blue hover:underline font-opensans">
             View all →
           </button>
@@ -254,9 +254,9 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Leads */}
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden mb-4">
+      <div className="bento-card overflow-hidden mb-4">
         <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey">
-          <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Recent Leads</h3>
+          <h3 className="bento-label">Recent Leads</h3>
           <button onClick={() => navigate('/leads')} className="text-xs text-arkalon-blue hover:underline font-opensans">
             View all →
           </button>
@@ -344,9 +344,9 @@ export default function Dashboard() {
       {/* Tasks Due Today + Recent Activities */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Tasks Due Today */}
-        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
+        <div className="bento-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey">
-            <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Tasks Due Today</h3>
+            <h3 className="bento-label">Tasks Due Today</h3>
             <button onClick={() => navigate('/tasks')} className="text-xs text-arkalon-blue hover:underline font-opensans">
               View all tasks →
             </button>
@@ -389,9 +389,9 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activities */}
-        <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
+        <div className="bento-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey">
-            <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Recent Activities</h3>
+            <h3 className="bento-label">Recent Activities</h3>
             <button onClick={() => navigate('/activities')} className="text-xs text-arkalon-blue hover:underline font-opensans">
               View all activities →
             </button>
