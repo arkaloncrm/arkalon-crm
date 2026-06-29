@@ -59,12 +59,12 @@
   background-color: var(--arkalon-surface-strong);
 }
 
-/* --- Sidebar: deepened navy + copper active accent ----------------------- */
+/* --- Sidebar: navy→blue vertical gradient + cyan active accent ----------- */
 .arkalon-sidebar {
-  background-color: var(--arkalon-navy-dark);
+  background: var(--sidebar-gradient);
 }
 
 .arkalon-sidebar-link-active {
-  background-color: rgba(0, 0, 0, 0.22);
-  border-left: 3px solid var(--arkalon-copper);
+  background-color: rgba(255, 255, 255, 0.14);
+  border-left: 3px solid var(--brand-cyan);
 }

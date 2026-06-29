@@ -21,22 +21,29 @@ const PIPELINE_STAGES = [
   { stage: 'Contract Sent', forecast: 'Commit' },
 ];
 
-const FORECAST_FILL = {
-  'Pipeline': '#94A3B8',
-  'Best Case': '#0073C6',
-  'Commit': '#F59E0B',
+// Per-stage colour progression: cool blues for early stages warming to orange
+// for late stages. Cosmetic only — bar values/order are unchanged.
+const STAGE_FILL = {
+  'Prospect': '#93C5FD',
+  'Qualified': '#60A5FA',
+  'Contacted': '#3B82F6',
+  'Proposal Sent': '#2563EB',
+  'Demo Done': '#1D4ED8',
+  'Negotiation': '#F5921E',
+  'Verbal Agreement': '#EA7C0C',
+  'Contract Sent': '#F5921E',
 };
 
 const BU_FILL = {
   'ASC': '#0073C6',
-  'Simply Seated': '#002B5C',
+  'Simply Seated': '#F5921E',
 };
 
 function ChartCard({ title, children }) {
   return (
-    <div className="arkalon-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-arkalon-lightgrey">
-        <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">{title}</h3>
+    <div className="bento-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-line">
+        <h3 className="bento-label">{title}</h3>
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -138,7 +145,7 @@ export default function DashboardCharts() {
             <div className="w-full h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 8 }}>
-                  <CartesianGrid horizontal={false} stroke="#F1F5F9" />
+                  <CartesianGrid horizontal={false} stroke="#E2E8F0" />
                   <XAxis
                     type="number"
                     tickFormatter={formatCurrencyCompact}
@@ -150,26 +157,23 @@ export default function DashboardCharts() {
                     type="category"
                     dataKey="stage"
                     width={108}
-                    tick={{ fontSize: 11, fill: '#475569' }}
+                    tick={{ fontSize: 11, fill: '#94A3B8' }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip content={<PipelineTooltip />} cursor={{ fill: '#F8FAFC' }} />
                   <Bar dataKey="total_commission" radius={[0, 4, 4, 0]} barSize={18}>
                     {chartData.map((entry) => (
-                      <Cell key={entry.stage} fill={FORECAST_FILL[entry.forecast]} />
+                      <Cell key={entry.stage} fill={STAGE_FILL[entry.stage] || '#93C5FD'} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex items-center gap-4 mt-2 pl-2">
-              {Object.entries(FORECAST_FILL).map(([label, fill]) => (
-                <div key={label} className="flex items-center gap-1.5 text-xs font-opensans text-slate-500">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: fill }} />
-                  {label}
-                </div>
-              ))}
+            <div className="flex items-center gap-2 mt-2 pl-2 text-xs font-opensans text-ink-faint">
+              <span>Early stage</span>
+              <span className="flex-1 h-1.5 rounded-full" style={{ background: 'linear-gradient(90deg,#93C5FD,#2563EB,#F5921E)' }} />
+              <span>Late stage</span>
             </div>
           </>
         )}
@@ -206,8 +210,8 @@ export default function DashboardCharts() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="text-[10px] uppercase tracking-widest text-slate-400 font-montserrat font-semibold">Total</div>
-                  <div className="text-lg font-montserrat font-bold" style={{ color: '#0073C6' }}>
+                  <div className="text-[10px] uppercase tracking-widest text-ink-muted font-montserrat font-semibold">Total</div>
+                  <div className="text-lg font-montserrat font-bold text-ink-primary">
                     {formatCurrencyCompact(totalCommission)}
                   </div>
                 </div>
@@ -227,10 +231,10 @@ export default function DashboardCharts() {
         </ChartCard>
 
         {/* Chart 3 — Closing Soon */}
-        <div className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey">
-            <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Closing Soon</h3>
-            <button onClick={() => navigate('/deals')} className="text-xs text-arkalon-blue hover:underline font-opensans">
+        <div className="bento-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-line">
+            <h3 className="bento-label">Closing Soon</h3>
+            <button onClick={() => navigate('/deals')} className="text-xs text-brand-blue hover:underline font-opensans">
               View all →
             </button>
           </div>
@@ -260,7 +264,7 @@ export default function DashboardCharts() {
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <div className="font-bold font-opensans text-sm" style={{ color: '#0073C6' }}>
+                      <div className="font-bold font-opensans text-sm text-ink-primary">
                         {formatCurrencyCompact(deal.total_contract_earnings)}
                       </div>
                       <Badge className={`${STAGE_COLOURS[deal.stage] || 'bg-gray-100 text-gray-700'} mt-0.5`}>
