@@ -4,21 +4,16 @@ import { List, LayoutGrid, Pencil, Trash2, X } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import SearchBar from '../../components/UI/SearchBar.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
-import Badge from '../../components/UI/Badge.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
-import { BUSINESS_UNITS, DEAL_STAGES, STAGE_COLOURS, FORECAST_CATEGORIES } from '../../utils/constants.js';
+import { BUSINESS_UNITS, DEAL_STAGES, FORECAST_CATEGORIES } from '../../utils/constants.js';
 import { formatCurrency, formatMrr } from '../../utils/formatCurrency.js';
 import { formatDate } from '../../utils/formatDate.js';
 import { dealsApi } from '../../api/deals.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import DealKanban from './DealKanban.jsx';
-
-const BU_COLOURS = {
-  'ASC': 'bg-blue-100 text-blue-700',
-  'Simply Seated': 'bg-teal-100 text-teal-700',
-};
+import { StagePill, BuDot } from './dealVisuals.jsx';
 
 function isCloseDatePast(dateStr, stage) {
   if (!dateStr) return false;
@@ -181,8 +176,8 @@ export default function DealsList() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Deals</h2>
-          <span className="bg-slate-100 text-slate-500 text-xs font-montserrat font-semibold px-2 py-0.5 rounded-full">
+          <h2 className="font-montserrat font-bold text-ink-primary text-xl">Deals</h2>
+          <span className="bg-surface-sunken text-ink-muted text-xs font-montserrat font-semibold px-2 py-0.5 rounded-full">
             {records.length}
           </span>
         </div>
@@ -251,23 +246,21 @@ export default function DealsList() {
             {records.map(r => (
               <MobileCard key={r.id} onClick={() => navigate(`/deals/${r.id}`)}>
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-semibold text-arkalon-blue font-opensans text-sm truncate">{r.deal_name}</span>
-                  <Badge className={`${STAGE_COLOURS[r.stage] || 'bg-gray-100 text-gray-700'} flex-shrink-0`}>{r.stage}</Badge>
+                  <span className="font-semibold text-ink-primary font-opensans text-sm truncate">{r.deal_name}</span>
+                  <StagePill stage={r.stage} className="flex-shrink-0" />
                 </div>
                 {r.account_name && (
-                  <div className="text-xs text-slate-500 font-opensans mt-0.5 truncate">{r.account_name}</div>
+                  <div className="text-xs text-ink-muted font-opensans mt-0.5 truncate">{r.account_name}</div>
                 )}
                 <div className="flex items-center justify-between gap-2 mt-2">
-                  <span className="text-sm font-opensans text-slate-700">{formatCurrency(r.gross_total_value)}</span>
-                  <span className="font-bold font-opensans text-sm" style={{ color: '#0073C6' }}>
+                  <span className="text-sm font-opensans text-ink-body">{formatCurrency(r.gross_total_value)}</span>
+                  <span className="font-bold font-opensans text-sm text-brand-blue">
                     {formatCurrency(r.total_contract_earnings)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 mt-2">
-                  {r.business_unit && (
-                    <Badge className={BU_COLOURS[r.business_unit] || 'bg-gray-100 text-gray-600'}>{r.business_unit}</Badge>
-                  )}
-                  <span className="text-xs text-slate-400 font-opensans">
+                <div className="flex items-center gap-2.5 mt-2">
+                  {r.business_unit && <BuDot unit={r.business_unit} className="text-xs" />}
+                  <span className="text-xs text-ink-faint font-opensans">
                     {r.close_date ? formatDate(r.close_date) : 'No close date'}
                   </span>
                 </div>
@@ -283,18 +276,18 @@ export default function DealsList() {
             ))}
           </div>
           {/* Desktop: table */}
-          <div className="hidden sm:block bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-            <Table>
+          <div className="hidden sm:block bg-white border border-line rounded-lg overflow-hidden">
+            <Table className="sharp-table">
               <Thead>
                 <tr>
                   <Th sortable sorted={sortBy === 'deal_name'} direction={sortDir} onClick={() => handleSort('deal_name')}>Deal Name</Th>
                   <Th>Account</Th>
                   <Th sortable sorted={sortBy === 'stage'} direction={sortDir} onClick={() => handleSort('stage')}>Stage</Th>
                   <Th sortable sorted={sortBy === 'close_date'} direction={sortDir} onClick={() => handleSort('close_date')}>Close Date</Th>
-                  <Th sortable sorted={sortBy === 'gross_total_value'} direction={sortDir} onClick={() => handleSort('gross_total_value')}>Gross Value</Th>
-                  <Th>MRR</Th>
-                  <Th sortable sorted={sortBy === 'total_contract_earnings'} direction={sortDir} onClick={() => handleSort('total_contract_earnings')}>Commission</Th>
-                  <Th sortable sorted={sortBy === 'probability'} direction={sortDir} onClick={() => handleSort('probability')}>Prob%</Th>
+                  <Th className="text-right" sortable sorted={sortBy === 'gross_total_value'} direction={sortDir} onClick={() => handleSort('gross_total_value')}>Gross Value</Th>
+                  <Th className="text-right">MRR</Th>
+                  <Th className="text-right" sortable sorted={sortBy === 'total_contract_earnings'} direction={sortDir} onClick={() => handleSort('total_contract_earnings')}>Commission</Th>
+                  <Th className="text-right" sortable sorted={sortBy === 'probability'} direction={sortDir} onClick={() => handleSort('probability')}>Prob%</Th>
                   <Th>Next Action</Th>
                   <Th>BU</Th>
                   <Th></Th>
@@ -303,12 +296,12 @@ export default function DealsList() {
               <Tbody>
                 {records.map(r => (
                   <Tr key={r.id} className="group" onClick={() => navigate(`/deals/${r.id}`)}>
-                    <Td className="font-semibold text-arkalon-blue">{r.deal_name}</Td>
+                    <Td className="font-medium cell-strong">{r.deal_name}</Td>
                     <Td>
                       {r.account_name ? (
                         <button
                           onClick={e => { e.stopPropagation(); navigate(`/accounts/${r.account_id}`); }}
-                          className="text-arkalon-blue hover:underline font-opensans text-sm"
+                          className="text-ink-body hover:text-brand-blue hover:underline font-opensans text-sm"
                         >
                           {r.account_name}
                         </button>
@@ -320,38 +313,32 @@ export default function DealsList() {
                       options={DEAL_STAGES}
                       onCommit={(v) => handleInlineEdit(r, 'stage', v)}
                     >
-                      <Badge className={STAGE_COLOURS[r.stage] || 'bg-gray-100 text-gray-700'}>
-                        {r.stage}
-                      </Badge>
+                      <StagePill stage={r.stage} />
                     </EditableCell>
                     <EditableCell
                       type="date"
                       value={r.close_date}
                       onCommit={(v) => handleInlineEdit(r, 'close_date', v)}
                     >
-                      <span className={isCloseDatePast(r.close_date, r.stage) ? 'text-red-600 font-semibold' : ''}>
+                      <span className={isCloseDatePast(r.close_date, r.stage) ? 'text-red-600 font-semibold' : 'text-ink-body'}>
                         {formatDate(r.close_date)}
                       </span>
                     </EditableCell>
-                    <Td>{formatCurrency(r.gross_total_value)}</Td>
-                    <Td>{r.business_unit === 'ASC' ? formatMrr(r.monthly_recurring_revenue) : '—'}</Td>
-                    <Td>
-                      <span className="font-bold" style={{ color: '#0073C6' }}>
-                        {formatCurrency(r.total_contract_earnings)}
-                      </span>
+                    <Td className="text-right tabular-nums cell-strong">{formatCurrency(r.gross_total_value)}</Td>
+                    <Td className="text-right tabular-nums">{r.business_unit === 'ASC' ? formatMrr(r.monthly_recurring_revenue) : '—'}</Td>
+                    <Td className="text-right tabular-nums font-semibold cell-blue">
+                      {formatCurrency(r.total_contract_earnings)}
                     </Td>
-                    <Td>{r.probability != null ? `${r.probability}%` : '—'}</Td>
+                    <Td className="text-right tabular-nums">{r.probability != null ? `${r.probability}%` : '—'}</Td>
                     <EditableCell
                       type="date"
                       value={r.next_action_date}
                       onCommit={(v) => handleInlineEdit(r, 'next_action_date', v)}
                     >
-                      <span>{formatDate(r.next_action_date)}</span>
+                      <span className="text-ink-body">{formatDate(r.next_action_date)}</span>
                     </EditableCell>
                     <Td>
-                      <Badge className={BU_COLOURS[r.business_unit] || 'bg-gray-100 text-gray-600'}>
-                        {r.business_unit}
-                      </Badge>
+                      <BuDot unit={r.business_unit} />
                     </Td>
                     <Td>
                       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>

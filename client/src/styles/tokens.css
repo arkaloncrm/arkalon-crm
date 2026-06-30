@@ -64,6 +64,19 @@
   /* Layout */
   --sidebar-width: 232px;
   --topbar-height: 64px;
+
+  /* Soft status pill backgrounds (pastel) + text — Session 2 (Deals reskin) */
+  --pill-blue-bg: #E7F1FB;   --pill-blue-text: #1D4ED8;   /* Contract Sent / info */
+  --pill-green-bg: #E7F6EC;  --pill-green-text: #15803D;  /* Confirmed / won */
+  --pill-amber-bg: #FEF3E2;  --pill-amber-text: #B45309;  /* Proposal / in progress */
+  --pill-orange-bg: #FDF0E1; --pill-orange-text: #C2410C; /* Negotiation */
+  --pill-violet-bg: #F1ECFB; --pill-violet-text: #6D28D9; /* Qualified */
+  --pill-grey-bg: #F1F5F9;   --pill-grey-text: #475569;   /* default / neutral */
+
+  /* Table craft — Session 2 */
+  --table-header-text: #64748B;   /* all-caps column headers */
+  --row-hover: #F9FBFD;
+  --row-border: #EEF2F7;          /* 1px row divider, lighter than card border */
 }
 
 /* ---------------------------------------------------------------------------
@@ -103,4 +116,56 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Sharp table craft — Session 2 (Deals reskin).
+   Applied ONLY by passing className="sharp-table" to the shared <Table>
+   wrapper from the Deals list. Other pages that use <Table> do not pass this
+   class, so they are completely unaffected. Descendant selectors here
+   (specificity 0,1,1+) outrank the component's single-class Tailwind utils.
+   ------------------------------------------------------------------------- */
+.sharp-table thead {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.sharp-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--table-header-text);
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+/* Recolour the component's row dividers to the lighter token (mirrors the
+   exact divide-y utility selector, prefixed so it wins). */
+.sharp-table tbody > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--row-border);
+}
+
+.sharp-table tbody tr {
+  background: var(--surface);
+}
+
+.sharp-table tbody tr:hover {
+  background: var(--row-hover);
+}
+
+.sharp-table tbody td {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  color: var(--text-body);
+}
+
+/* Emphasis cells. Higher specificity than the base td colour above so the
+   chosen tone wins deterministically. cell-strong = ink-primary (deal name,
+   gross value); cell-blue = brand-blue (commission). */
+.sharp-table tbody td.cell-strong {
+  color: var(--text-primary);
+}
+
+.sharp-table tbody td.cell-blue {
+  color: var(--brand-blue);
 }
