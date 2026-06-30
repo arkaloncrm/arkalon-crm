@@ -170,11 +170,6 @@ export default function DashboardCharts() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex items-center gap-2 mt-2 pl-2 text-xs font-opensans text-ink-faint">
-              <span>Early stage</span>
-              <span className="flex-1 h-1.5 rounded-full" style={{ background: 'linear-gradient(90deg,#93C5FD,#2563EB,#F5921E)' }} />
-              <span>Late stage</span>
-            </div>
           </>
         )}
       </ChartCard>
