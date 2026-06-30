@@ -16,15 +16,11 @@ import { notesApi } from '../../api/notes.js';
 import api from '../../api/axios.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import {
-  DEAL_STAGES, STAGE_COLOURS, FORECAST_COLOURS,
+  DEAL_STAGES, FORECAST_COLOURS,
 } from '../../utils/constants.js';
 import { formatCurrency, formatMrr, formatPercentage } from '../../utils/formatCurrency.js';
 import { formatDate, formatDateTime } from '../../utils/formatDate.js';
-
-const BU_COLOURS = {
-  'ASC': 'bg-blue-100 text-blue-700',
-  'Simply Seated': 'bg-teal-100 text-teal-700',
-};
+import { StagePill, BuDot } from './dealVisuals.jsx';
 
 const ROLE_COLOURS = {
   'Primary': 'bg-blue-100 text-blue-700',
@@ -37,18 +33,18 @@ const ROLE_COLOURS = {
 
 function FieldRow({ label, value }) {
   return (
-    <div className="flex py-2 border-b border-slate-100 last:border-0">
-      <span className="w-44 flex-shrink-0 text-xs text-slate-400 font-opensans uppercase tracking-wide pt-0.5">{label}</span>
-      <span className="text-sm text-slate-800 font-opensans flex-1 min-w-0 break-words">{value ?? '—'}</span>
+    <div className="flex py-2 border-b last:border-0" style={{ borderColor: 'var(--row-border)' }}>
+      <span className="w-44 flex-shrink-0 bento-label font-opensans pt-0.5">{label}</span>
+      <span className="text-sm text-ink-primary font-opensans flex-1 min-w-0 break-words">{value ?? '—'}</span>
     </div>
   );
 }
 
 function SectionCard({ title, children, className = '' }) {
   return (
-    <div className={`bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden mb-4 ${className}`}>
-      <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
-        <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">{title}</h3>
+    <div className={`bg-surface border border-line rounded-lg overflow-hidden mb-4 ${className}`}>
+      <div className="px-4 py-3 border-b border-line">
+        <h3 className="bento-label">{title}</h3>
       </div>
       <div className="px-4 py-2">{children}</div>
     </div>
@@ -372,21 +368,25 @@ export default function DealDetail() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <button onClick={() => navigate('/deals')} className="text-arkalon-blue text-sm hover:underline font-opensans">
-              ← Deals
+          <div className="flex items-center gap-1.5 mb-1.5 text-xs font-opensans text-ink-muted">
+            <button onClick={() => navigate('/deals')} className="hover:text-brand-blue hover:underline">
+              Deals
             </button>
+            <span className="text-ink-faint">/</span>
+            <span className="text-ink-body truncate">{deal.deal_name}</span>
           </div>
-          <h2 className="font-montserrat font-bold text-arkalon-navy text-2xl mb-2 min-w-0 break-words">{deal.deal_name}</h2>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap mb-2">
+            <h2 className="font-montserrat font-bold text-ink-primary text-2xl min-w-0 break-words">{deal.deal_name}</h2>
+            <StagePill stage={deal.stage} />
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
             {deal.account_name && (
               <button onClick={() => navigate(`/accounts/${deal.account_id}`)}
-                className="text-arkalon-blue text-sm hover:underline font-opensans font-semibold min-w-0 break-words text-left">
+                className="text-ink-body hover:text-brand-blue text-sm hover:underline font-opensans font-semibold min-w-0 break-words text-left">
                 {deal.account_name}
               </button>
             )}
-            <Badge className={STAGE_COLOURS[deal.stage] || 'bg-gray-100 text-gray-700'}>{deal.stage}</Badge>
-            <Badge className={BU_COLOURS[deal.business_unit] || 'bg-gray-100 text-gray-600'}>{deal.business_unit}</Badge>
+            <BuDot unit={deal.business_unit} className="text-sm" />
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-4 flex-wrap">
@@ -402,9 +402,25 @@ export default function DealDetail() {
         </div>
       </div>
 
+      {/* AI Deal Brief — STYLED PLACEHOLDER ONLY (Session 2). Static markup,
+          no data, no AI/API. Content wiring is a separate later session. */}
+      <div
+        className="rounded-lg border px-4 py-3 mb-5"
+        style={{ background: '#F5F9FE', borderColor: 'var(--bu-asc-bg)' }}
+      >
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-sm" aria-hidden="true">✨</span>
+          <span className="bento-label" style={{ color: 'var(--brand-blue)' }}>AI Deal Brief</span>
+        </div>
+        <p className="text-sm text-ink-muted font-opensans">
+          AI deal brief will appear here.
+        </p>
+        <p className="text-xs text-ink-faint font-opensans mt-1">Coming in a future update</p>
+      </div>
+
       {/* Inline stage change */}
-      <div className="flex flex-wrap items-center gap-2 mb-5 bg-white border border-arkalon-lightgrey rounded-lg px-4 py-3">
-        <span className="text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide mr-1">Change Stage</span>
+      <div className="flex flex-wrap items-center gap-2 mb-5 bg-surface border border-line rounded-lg px-4 py-3">
+        <span className="bento-label mr-1">Change Stage</span>
         <select
           className="px-3 py-1.5 text-sm border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30 bg-white"
           value={selectedStage}
@@ -427,55 +443,56 @@ export default function DealDetail() {
           />
 
           {/* Financial Summary — HERO CARD */}
-          <div className="bg-white border-2 border-arkalon-blue rounded-lg overflow-hidden mb-4">
-            <div className="px-5 py-3 bg-arkalon-navy">
-              <h3 className="font-montserrat font-bold text-white text-sm uppercase tracking-wider">Deal Financials</h3>
+          <div className="bg-surface border border-line rounded-lg overflow-hidden mb-4">
+            <div className="px-5 py-3 border-b border-line">
+              <h3 className="bento-label">Deal Financials</h3>
             </div>
             <div className="p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mb-4">
-                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                  <span className="text-sm text-slate-500 font-opensans">Gross Value (Total Contract)</span>
-                  <span className="font-semibold text-slate-800 font-opensans">{formatCurrency(deal.gross_total_value)}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mb-5">
+                <div className="flex justify-between items-center py-1.5 border-b" style={{ borderColor: 'var(--row-border)' }}>
+                  <span className="text-sm text-ink-muted font-opensans">Gross Value (Total Contract)</span>
+                  <span className="font-semibold text-ink-primary font-opensans tabular-nums">{formatCurrency(deal.gross_total_value)}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                  <span className="text-sm text-slate-500 font-opensans">Weighted Value</span>
-                  <span className="font-semibold text-slate-800 font-opensans">
+                <div className="flex justify-between items-center py-1.5 border-b" style={{ borderColor: 'var(--row-border)' }}>
+                  <span className="text-sm text-ink-muted font-opensans">Weighted Value</span>
+                  <span className="font-semibold text-ink-primary font-opensans tabular-nums">
                     {formatCurrency(deal.weighted_value)}
-                    <span className="text-slate-400 ml-1 text-xs">({deal.probability}%)</span>
+                    <span className="text-ink-faint ml-1 text-xs">({deal.probability}%)</span>
                   </span>
                 </div>
                 {isASC && (
-                  <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                    <span className="text-sm text-slate-500 font-opensans">Monthly Recurring (MRR)</span>
-                    <span className="font-semibold text-slate-800 font-opensans">{formatMrr(deal.monthly_recurring_revenue)}</span>
+                  <div className="flex justify-between items-center py-1.5 border-b" style={{ borderColor: 'var(--row-border)' }}>
+                    <span className="text-sm text-ink-muted font-opensans">Monthly Recurring (MRR)</span>
+                    <span className="font-semibold text-ink-primary font-opensans tabular-nums">{formatMrr(deal.monthly_recurring_revenue)}</span>
                   </div>
                 )}
                 {isASC && (
-                  <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                    <span className="text-sm text-slate-500 font-opensans">Contract Term</span>
-                    <span className="font-semibold text-slate-800 font-opensans">
+                  <div className="flex justify-between items-center py-1.5 border-b" style={{ borderColor: 'var(--row-border)' }}>
+                    <span className="text-sm text-ink-muted font-opensans">Contract Term</span>
+                    <span className="font-semibold text-ink-primary font-opensans">
                       {deal.contract_term_months ? `${deal.contract_term_months} months` : '—'}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                  <span className="text-sm text-slate-500 font-opensans">Forecast Category</span>
+                <div className="flex justify-between items-center py-1.5 border-b" style={{ borderColor: 'var(--row-border)' }}>
+                  <span className="text-sm text-ink-muted font-opensans">Forecast Category</span>
                   <Badge className={FORECAST_COLOURS[deal.forecast_category] || 'bg-gray-100 text-gray-600'}>
                     {deal.forecast_category}
                   </Badge>
                 </div>
               </div>
-              <div className="border-t-2 border-arkalon-lightgrey pt-4">
-                <div className="text-xs font-montserrat font-bold text-slate-400 uppercase tracking-widest mb-1">Stuart's Commission</div>
-                <div className="text-4xl font-montserrat font-bold leading-none mb-2" style={{ color: '#0073C6' }}>
+              {/* Commission hero tile */}
+              <div className="rounded-lg p-4" style={{ background: 'var(--bu-asc-bg)' }}>
+                <div className="bento-label mb-1" style={{ color: 'var(--brand-blue)' }}>Stuart's Commission</div>
+                <div className="text-4xl font-montserrat font-bold leading-none mb-2 tabular-nums" style={{ color: 'var(--brand-blue)' }}>
                   {formatCurrency(deal.total_contract_earnings)}
                 </div>
                 {deal.contract_term_months > 1 && commissionForMonthly > 0 && (
-                  <div className="text-sm text-slate-500 font-opensans mt-1">
+                  <div className="text-sm text-ink-muted font-opensans mt-1">
                     {formatCurrency(commissionForMonthly / deal.contract_term_months, 2)}/mo over {deal.contract_term_months} months
                   </div>
                 )}
-                <div className="text-sm text-slate-500 font-opensans">{deal.commission_basis}</div>
+                <div className="text-sm text-ink-muted font-opensans">{deal.commission_basis}</div>
                 {deal.commission_warning === 'beyond_3_year_cap' && (
                   <div className="text-xs font-opensans text-amber-600 mt-2">
                     ⚠️ Beyond 3-year cap — verify entitlement
@@ -491,29 +508,36 @@ export default function DealDetail() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-arkalon-lightgrey">
-                      {['Product', 'SKU', 'Description', 'Qty', 'Unit Price', 'Unit Type', 'Recurring', 'Line Total'].map(h => (
-                        <th key={h} className="text-left text-xs font-montserrat font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">
-                          {h}
+                    <tr className="border-b" style={{ borderColor: 'var(--border-strong)' }}>
+                      {[
+                        { label: 'Product' }, { label: 'SKU' }, { label: 'Description' },
+                        { label: 'Qty', align: 'right' }, { label: 'Unit Price', align: 'right' },
+                        { label: 'Unit Type' }, { label: 'Recurring' }, { label: 'Line Total', align: 'right' },
+                      ].map(h => (
+                        <th
+                          key={h.label}
+                          className={`text-[11px] font-montserrat font-semibold text-ink-muted uppercase tracking-[0.06em] pb-2 pr-3 ${h.align === 'right' ? 'text-right' : 'text-left'}`}
+                        >
+                          {h.label}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {deal.line_items.map((item, i) => (
-                      <tr key={item.id || i} className="border-b border-slate-100 last:border-0">
-                        <td className="py-2 pr-3 font-semibold text-arkalon-navy font-opensans text-xs">{item.product_name}</td>
-                        <td className="py-2 pr-3 font-mono text-xs text-slate-500">{item.sku || '—'}</td>
-                        <td className="py-2 pr-3 text-xs text-slate-600 font-opensans">{item.description || '—'}</td>
-                        <td className="py-2 pr-3 text-xs text-slate-600 font-opensans">{item.quantity}</td>
-                        <td className="py-2 pr-3 text-xs text-slate-600 font-opensans">{formatCurrency(item.unit_price)}</td>
-                        <td className="py-2 pr-3 text-xs text-slate-500 font-opensans">{item.unit_type || '—'}</td>
-                        <td className="py-2 pr-3">
+                      <tr key={item.id || i} className="border-b last:border-0" style={{ borderColor: 'var(--row-border)' }}>
+                        <td className="py-2.5 pr-3 font-semibold text-ink-primary font-opensans text-xs">{item.product_name}</td>
+                        <td className="py-2.5 pr-3 font-mono text-xs text-ink-muted">{item.sku || '—'}</td>
+                        <td className="py-2.5 pr-3 text-xs text-ink-body font-opensans">{item.description || '—'}</td>
+                        <td className="py-2.5 pr-3 text-xs text-ink-body font-opensans text-right tabular-nums">{item.quantity}</td>
+                        <td className="py-2.5 pr-3 text-xs text-ink-body font-opensans text-right tabular-nums">{formatCurrency(item.unit_price)}</td>
+                        <td className="py-2.5 pr-3 text-xs text-ink-muted font-opensans">{item.unit_type || '—'}</td>
+                        <td className="py-2.5 pr-3">
                           <Badge className={item.is_recurring ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                             {item.is_recurring ? 'Recurring' : 'One-off'}
                           </Badge>
                         </td>
-                        <td className="py-2 pr-3 font-semibold text-slate-700 font-opensans text-xs">
+                        <td className="py-2.5 pr-3 font-semibold text-ink-primary font-opensans text-xs text-right tabular-nums">
                           {formatCurrency(item.line_total)}
                         </td>
                       </tr>
@@ -529,7 +553,7 @@ export default function DealDetail() {
 
           {/* Deal Info */}
           <SectionCard title="Deal Info">
-            <FieldRow label="Stage" value={<Badge className={STAGE_COLOURS[deal.stage] || 'bg-gray-100 text-gray-700'}>{deal.stage}</Badge>} />
+            <FieldRow label="Stage" value={<StagePill stage={deal.stage} />} />
             {deal.reference_no && <FieldRow label="Reference No." value={deal.reference_no} />}
             {isASC && <FieldRow label="Deal Type" value={deal.deal_type} />}
             <FieldRow label="Close Date" value={formatDate(deal.close_date)} />
@@ -548,16 +572,16 @@ export default function DealDetail() {
           <DealContactRoles dealId={id} accountId={deal.account_id} />
 
           {/* Tabs */}
-          <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-            <div className="flex border-b border-arkalon-lightgrey">
+          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+            <div className="flex border-b border-line">
               {['activities', 'tasks', 'notes'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-5 py-3 text-sm font-montserrat font-semibold capitalize transition-colors ${
                     activeTab === tab
-                      ? 'text-arkalon-blue border-b-2 border-arkalon-blue -mb-px'
-                      : 'text-slate-500 hover:text-arkalon-navy'
+                      ? 'text-ink-primary border-b-2 border-brand-blue -mb-px'
+                      : 'text-ink-muted hover:text-ink-primary'
                   }`}
                 >
                   {tab}
@@ -580,9 +604,9 @@ export default function DealDetail() {
         <div className="w-full lg:w-64 lg:flex-shrink-0 space-y-4">
 
           {/* Linked Contacts */}
-          <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
-              <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Contacts</h3>
+          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-line">
+              <h3 className="bento-label">Contacts</h3>
             </div>
             <div className="p-3">
               {(!deal.contacts || deal.contacts.length === 0) ? (
@@ -638,9 +662,9 @@ export default function DealDetail() {
           </div>
 
           {/* Quick Actions */}
-          <div className="bg-white border border-arkalon-lightgrey rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-arkalon-lightgrey">
-              <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm uppercase tracking-wide">Quick Actions</h3>
+          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-line">
+              <h3 className="bento-label">Quick Actions</h3>
             </div>
             <div className="p-3 space-y-2">
               <button
