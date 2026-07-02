@@ -27,6 +27,7 @@ const SS_CSV_COLUMNS = [
   { label: 'Commission Rate', getValue: (r) => formatPercentage(r.commission_percentage) },
   { label: 'Commission Amount', getValue: (r) => r.commission_amount ?? 0 },
   { label: 'Stage', getValue: (r) => r.stage || '' },
+  { label: 'Paid', getValue: (r) => (r.commission_paid ? 'Paid' : 'Unpaid') },
 ];
 
 const ASC_CSV_COLUMNS = [
@@ -39,6 +40,7 @@ const ASC_CSV_COLUMNS = [
   // ASC commission is the full earned amount over the contract term (what gets invoiced).
   { label: 'Total Commission', getValue: (r) => r.total_contract_earnings ?? 0 },
   { label: 'Stage', getValue: (r) => r.stage || '' },
+  { label: 'Paid', getValue: (r) => (r.commission_paid ? 'Paid' : 'Unpaid') },
 ];
 
 // Inline CSV builder — we need an exact filename (commission-export-<bu>-<month>.csv)
@@ -78,12 +80,13 @@ export default function CommissionExportReport() {
   const { addToast } = useToast();
   const [month, setMonth] = useState(currentMonth());
   const [bu, setBu] = useState('Simply Seated');
+  const [paidFilter, setPaidFilter] = useState('all'); // statement default: show all, filter to unpaid to see what's owed
   const [deals, setDeals] = useState(null);
 
   useEffect(() => {
     setDeals(null);
     let cancelled = false;
-    api.get('/reports/commission-export', { params: { month, business_unit: bu } })
+    api.get('/reports/commission-export', { params: { month, business_unit: bu, paid: paidFilter } })
       .then((res) => { if (!cancelled) setDeals(res.data.data || []); })
       .catch(() => {
         if (!cancelled) {
@@ -92,7 +95,7 @@ export default function CommissionExportReport() {
         }
       });
     return () => { cancelled = true; };
-  }, [month, bu]);
+  }, [month, bu, paidFilter]);
 
   const isASC = bu === 'ASC';
   const rows = deals || [];
@@ -132,6 +135,13 @@ export default function CommissionExportReport() {
           <option value="ASC">ASC</option>
         </select>
       </FilterField>
+      <FilterField label="Paid Status">
+        <select value={paidFilter} onChange={(e) => setPaidFilter(e.target.value)} className={selectClass}>
+          <option value="all">All</option>
+          <option value="unpaid">Unpaid only</option>
+          <option value="paid">Paid only</option>
+        </select>
+      </FilterField>
     </>
   );
 
@@ -156,6 +166,7 @@ export default function CommissionExportReport() {
               <Th>Contract Term (months)</Th>
               <Th>Total Commission</Th>
               <Th>Stage</Th>
+              <Th>Paid</Th>
             </tr>
           </Thead>
           <Tbody>
@@ -175,6 +186,11 @@ export default function CommissionExportReport() {
                 <Td>
                   <Badge className={STAGE_COLOURS[d.stage] || 'bg-gray-100 text-gray-700'}>{d.stage}</Badge>
                 </Td>
+                <Td>
+                  {d.commission_paid
+                    ? <Badge className="bg-green-100 text-green-700">Paid</Badge>
+                    : <Badge className="bg-slate-100 text-slate-500">Unpaid</Badge>}
+                </Td>
               </tr>
             ))}
             <tr className="bg-slate-100 font-montserrat font-semibold text-arkalon-navy">
@@ -184,6 +200,7 @@ export default function CommissionExportReport() {
               <Td className="font-bold">
                 <span style={{ color: '#0073C6' }}>{formatCurrency(totalCommission, 2)}</span>
               </Td>
+              <Td></Td>
               <Td></Td>
             </tr>
           </Tbody>
@@ -200,6 +217,7 @@ export default function CommissionExportReport() {
               <Th>Commission Rate</Th>
               <Th>Commission Amount</Th>
               <Th>Stage</Th>
+              <Th>Paid</Th>
             </tr>
           </Thead>
           <Tbody>
@@ -219,6 +237,11 @@ export default function CommissionExportReport() {
                 <Td>
                   <Badge className={STAGE_COLOURS[d.stage] || 'bg-gray-100 text-gray-700'}>{d.stage}</Badge>
                 </Td>
+                <Td>
+                  {d.commission_paid
+                    ? <Badge className="bg-green-100 text-green-700">Paid</Badge>
+                    : <Badge className="bg-slate-100 text-slate-500">Unpaid</Badge>}
+                </Td>
               </tr>
             ))}
             <tr className="bg-slate-100 font-montserrat font-semibold text-arkalon-navy">
@@ -230,6 +253,7 @@ export default function CommissionExportReport() {
               <Td className="font-bold">
                 <span style={{ color: '#0073C6' }}>{formatCurrency(totalCommission, 2)}</span>
               </Td>
+              <Td></Td>
               <Td></Td>
             </tr>
           </Tbody>

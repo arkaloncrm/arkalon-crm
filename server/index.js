@@ -6,6 +6,7 @@ const { initDb } = require('./database');
 const { runMigration: migration004 } = require('./database/migrations/004_deals_columns');
 const { runMigration: migration006 } = require('./database/migrations/006_products_columns');
 const { runMigration: migration007 } = require('./database/migrations/007_accounts_priority_flag');
+const { runMigration: migration008 } = require('./database/migrations/008_deals_commission_paid');
 const authRouter = require('./auth/authRouter');
 const { authMiddleware } = require('./auth/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
@@ -81,6 +82,7 @@ async function start() {
   await migration004();
   await migration006();
   await migration007();
+  await migration008();
 
   app.listen(PORT, () => {
     console.log('');

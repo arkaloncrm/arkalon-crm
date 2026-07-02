@@ -166,6 +166,8 @@ const SCHEMA = `
     converted_from_lead_id INTEGER REFERENCES leads(id),
     monthly_recurring_revenue NUMERIC(15,2) DEFAULT 0,
     commission_override_amount NUMERIC(15,2),
+    commission_paid BOOLEAN NOT NULL DEFAULT false,
+    commission_paid_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
   );

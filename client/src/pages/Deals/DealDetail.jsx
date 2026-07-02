@@ -22,6 +22,19 @@ import { formatCurrency, formatMrr, formatPercentage } from '../../utils/formatC
 import { formatDate, formatDateTime } from '../../utils/formatDate.js';
 import { StagePill, BuDot } from './dealVisuals.jsx';
 
+// Commission paid/unpaid pill — mirrors StagePill's token styling (S2).
+function PaidPill({ paid }) {
+  const tone = paid ? 'green' : 'grey';
+  return (
+    <span
+      className="inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      style={{ background: `var(--pill-${tone}-bg)`, color: `var(--pill-${tone}-text)` }}
+    >
+      {paid ? 'Paid' : 'Unpaid'}
+    </span>
+  );
+}
+
 const ROLE_COLOURS = {
   'Primary': 'bg-blue-100 text-blue-700',
   'Operations': 'bg-indigo-100 text-indigo-700',
@@ -486,6 +499,13 @@ export default function DealDetail() {
                 <div className="bento-label mb-1" style={{ color: 'var(--brand-blue)' }}>Stuart's Commission</div>
                 <div className="text-4xl font-montserrat font-bold leading-none mb-2 tabular-nums" style={{ color: 'var(--brand-blue)' }}>
                   {formatCurrency(deal.total_contract_earnings)}
+                </div>
+                {/* Commission paid status — display only (toggle lives on the Deals list) */}
+                <div className="flex items-center gap-1.5 mb-2 text-xs font-opensans">
+                  <PaidPill paid={!!deal.commission_paid} />
+                  {deal.commission_paid && deal.commission_paid_at && (
+                    <span className="text-ink-muted">on {formatDateTime(deal.commission_paid_at)}</span>
+                  )}
                 </div>
                 {deal.contract_term_months > 1 && commissionForMonthly > 0 && (
                   <div className="text-sm text-ink-muted font-opensans mt-1">

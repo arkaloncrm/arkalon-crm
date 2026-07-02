@@ -244,6 +244,8 @@ router.get('/', async (req, res) => {
         deals.contract_term_months,
         deals.total_contract_earnings,
         deals.weighted_value,
+        deals.commission_paid,
+        deals.commission_paid_at,
         deals.reference_no,
         deals.description,
         deals.next_action,
@@ -292,6 +294,8 @@ router.get('/:id', async (req, res) => {
         deals.total_contract_earnings,
         deals.weighted_value,
         deals.commission_warning,
+        deals.commission_paid,
+        deals.commission_paid_at,
         deals.reference_no,
         deals.description,
         deals.executive_summary,
@@ -765,8 +769,10 @@ router.patch('/:id/stage', async (req, res) => {
 
 // PATCH /api/deals/:id — partial update of non-financial fields only.
 // Financial fields are intentionally excluded; they are derived from line
-// items and must go through POST/PUT, which recalculate them.
-const DEAL_PATCH_FIELDS = ['stage', 'close_date', 'next_action', 'next_action_date', 'executive_summary'];
+// items and must go through POST/PUT, which recalculate them. commission_paid
+// is non-financial state (does NOT touch the commission calculation) and is
+// special-cased below to also stamp/clear commission_paid_at server-side.
+const DEAL_PATCH_FIELDS = ['stage', 'close_date', 'next_action', 'next_action_date', 'executive_summary', 'commission_paid'];
 
 router.patch('/:id', async (req, res) => {
   try {
@@ -787,6 +793,15 @@ router.patch('/:id', async (req, res) => {
       if (req.body[field] === undefined) continue;
       let value = req.body[field];
       if (NON_TEXT.has(field) && value === '') value = null;
+      // Paid flag: coerce to a real boolean and stamp/clear the paired timestamp
+      // server-side (never trust a client-sent timestamp). Non-financial — no recompute.
+      if (field === 'commission_paid') {
+        const paid = value === true || value === 'true' || value === 1;
+        setParts.push('commission_paid = ?');
+        params.push(paid);
+        setParts.push(paid ? 'commission_paid_at = NOW()' : 'commission_paid_at = NULL');
+        continue;
+      }
       setParts.push(`${field} = ?`);
       params.push(value);
     }
@@ -819,6 +834,37 @@ router.patch('/:id', async (req, res) => {
       WHERE deals.id = ?
     `), [id]);
     res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/deals/commission/mark-paid — batch mark commission paid/unpaid in
+// one action (money lands for several jobs, mark them together).
+// Body: { ids: number[], paid?: boolean (default true) }. Non-financial state:
+// stamps/clears commission_paid_at server-side; never recomputes financials.
+router.post('/commission/mark-paid', async (req, res) => {
+  try {
+    const { ids, paid = true } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+    }
+    const intIds = ids.map(Number).filter(Number.isInteger);
+    if (intIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must contain valid deal IDs' });
+    }
+    const isPaid = paid === true || paid === 'true' || paid === 1;
+
+    const { rowCount } = await pool.query(
+      P(`UPDATE deals
+         SET commission_paid = ?,
+             commission_paid_at = CASE WHEN ? THEN NOW() ELSE NULL END,
+             updated_at = NOW()
+         WHERE id = ANY(?)`),
+      [isPaid, isPaid, intIds]
+    );
+
+    res.json({ success: true, data: { updated: rowCount, paid: isPaid } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
