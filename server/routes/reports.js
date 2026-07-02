@@ -336,6 +336,15 @@ router.get('/bu-split', async (req, res) => {
 // silently truncate this report. Sorting and filtering happen client-side.
 router.get('/commission-by-deal', async (req, res) => {
   try {
+    // Paid filter is a controlled enum ('unpaid' | 'paid' | 'all'); anything else
+    // (incl. absent) returns all rows. Inlined safely — no user text reaches SQL.
+    const paid = req.query.paid;
+    const paidWhere = paid === 'unpaid'
+      ? 'WHERE deals.commission_paid = false'
+      : paid === 'paid'
+        ? 'WHERE deals.commission_paid = true'
+        : '';
+
     const { rows: deals } = await pool.query(`
       SELECT
         deals.id,
@@ -347,9 +356,12 @@ router.get('/commission-by-deal', async (req, res) => {
         deals.commission_percentage,
         deals.commission_override_amount,
         deals.total_contract_earnings,
+        deals.commission_paid,
+        deals.commission_paid_at,
         accounts.name AS account_name
       FROM deals
       LEFT JOIN accounts ON deals.account_id = accounts.id
+      ${paidWhere}
       ORDER BY deals.close_date ASC NULLS LAST
     `);
     res.json({ success: true, data: deals });
@@ -378,6 +390,15 @@ router.get('/commission-export', async (req, res) => {
     const monthStart = monthDt.startOf('month').toISODate();
     const monthEnd = monthDt.endOf('month').toISODate();
 
+    // Paid filter is a controlled enum ('unpaid' | 'paid' | 'all'); absent/other
+    // returns all. Inlined safely — no user text reaches SQL.
+    const paid = req.query.paid;
+    const paidWhere = paid === 'unpaid'
+      ? 'AND deals.commission_paid = false'
+      : paid === 'paid'
+        ? 'AND deals.commission_paid = true'
+        : '';
+
     const { rows: deals } = await pool.query(P(`
       SELECT
         deals.deal_name,
@@ -390,7 +411,9 @@ router.get('/commission-export', async (req, res) => {
         deals.total_contract_earnings,
         deals.monthly_recurring_revenue,
         deals.contract_term_months,
-        deals.stage
+        deals.stage,
+        deals.commission_paid,
+        deals.commission_paid_at
       FROM deals
       LEFT JOIN accounts ON deals.account_id = accounts.id
       WHERE deals.stage = 'Closed Won'
@@ -398,6 +421,7 @@ router.get('/commission-export', async (req, res) => {
         AND deals.close_date IS NOT NULL
         AND deals.close_date >= ?
         AND deals.close_date <= ?
+        ${paidWhere}
       ORDER BY deals.close_date ASC
     `), [business_unit, monthStart, monthEnd]);
 

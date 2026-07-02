@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { List, LayoutGrid, Pencil, Trash2, X } from 'lucide-react';
+import { List, LayoutGrid, Pencil, Trash2, X, CheckCircle2, Circle } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import SearchBar from '../../components/UI/SearchBar.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
@@ -14,6 +14,20 @@ import { dealsApi } from '../../api/deals.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import DealKanban from './DealKanban.jsx';
 import { StagePill, BuDot } from './dealVisuals.jsx';
+
+// Commission paid/unpaid pill — mirrors StagePill's token styling (S2) so it
+// sits consistently beside the pastel stage pills. Green = paid, grey = unpaid.
+function PaidPill({ paid, className = '' }) {
+  const tone = paid ? 'green' : 'grey';
+  return (
+    <span
+      className={`inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${className}`}
+      style={{ background: `var(--pill-${tone}-bg)`, color: `var(--pill-${tone}-text)` }}
+    >
+      {paid ? 'Paid' : 'Unpaid'}
+    </span>
+  );
+}
 
 function isCloseDatePast(dateStr, stage) {
   if (!dateStr) return false;
@@ -159,6 +173,25 @@ export default function DealsList() {
     }
   };
 
+  // Toggle a deal's commission paid/unpaid with optimistic update + revert on
+  // error. The server owns commission_paid_at; we mirror it locally for instant
+  // feedback then reconcile with the returned row. Non-financial — no recompute.
+  const handleTogglePaid = async (deal) => {
+    const snapshot = deals;
+    const next = !deal.commission_paid;
+    setDeals(ds => ds.map(d => (d.id === deal.id
+      ? { ...d, commission_paid: next, commission_paid_at: next ? new Date().toISOString() : null }
+      : d)));
+    try {
+      const res = await dealsApi.patch(deal.id, { commission_paid: next });
+      setDeals(ds => ds.map(d => (d.id === deal.id ? { ...d, ...res.data.data } : d)));
+      addToast(next ? 'Commission marked paid' : 'Commission marked unpaid', 'success');
+    } catch (err) {
+      setDeals(snapshot);
+      addToast(err.response?.data?.error || 'Failed to update paid status', 'error');
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -254,9 +287,12 @@ export default function DealsList() {
                 )}
                 <div className="flex items-center justify-between gap-2 mt-2">
                   <span className="text-sm font-opensans text-ink-body">{formatCurrency(r.gross_total_value)}</span>
-                  <span className="font-bold font-opensans text-sm text-brand-blue">
-                    {formatCurrency(r.total_contract_earnings)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {r.commission_paid && <PaidPill paid />}
+                    <span className="font-bold font-opensans text-sm text-brand-blue">
+                      {formatCurrency(r.total_contract_earnings)}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2.5 mt-2">
                   {r.business_unit && <BuDot unit={r.business_unit} className="text-xs" />}
@@ -265,6 +301,9 @@ export default function DealsList() {
                   </span>
                 </div>
                 <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
+                  <CardAction label={r.commission_paid ? 'Mark unpaid' : 'Mark paid'} onClick={() => handleTogglePaid(r)}>
+                    {r.commission_paid ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Circle className="w-4 h-4" />}
+                  </CardAction>
                   <CardAction label="Edit" onClick={() => navigate(`/deals/${r.id}/edit`)}>
                     <Pencil className="w-4 h-4" />
                   </CardAction>
@@ -295,7 +334,7 @@ export default function DealsList() {
               </Thead>
               <Tbody>
                 {records.map(r => (
-                  <Tr key={r.id} className="group" onClick={() => navigate(`/deals/${r.id}`)}>
+                  <Tr key={r.id} className={`group ${r.commission_paid ? 'opacity-60' : ''}`} onClick={() => navigate(`/deals/${r.id}`)}>
                     <Td className="font-medium cell-strong">{r.deal_name}</Td>
                     <Td>
                       {r.account_name ? (
@@ -327,7 +366,10 @@ export default function DealsList() {
                     <Td className="text-right tabular-nums cell-strong">{formatCurrency(r.gross_total_value)}</Td>
                     <Td className="text-right tabular-nums">{r.business_unit === 'ASC' ? formatMrr(r.monthly_recurring_revenue) : '—'}</Td>
                     <Td className="text-right tabular-nums font-semibold cell-blue">
-                      {formatCurrency(r.total_contract_earnings)}
+                      <span className="inline-flex items-center gap-2 justify-end">
+                        {r.commission_paid && <PaidPill paid />}
+                        {formatCurrency(r.total_contract_earnings)}
+                      </span>
                     </Td>
                     <Td className="text-right tabular-nums">{r.probability != null ? `${r.probability}%` : '—'}</Td>
                     <EditableCell
@@ -342,6 +384,11 @@ export default function DealsList() {
                     </Td>
                     <Td>
                       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleTogglePaid(r)}
+                          title={r.commission_paid ? 'Mark commission unpaid' : 'Mark commission paid'}
+                          className={`p-1 transition-colors ${r.commission_paid ? 'text-green-600 hover:text-green-700' : 'text-slate-400 hover:text-green-600'}`}>
+                          {r.commission_paid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                        </button>
                         <button onClick={() => navigate(`/deals/${r.id}/edit`)}
                           className="p-1 text-slate-400 hover:text-arkalon-blue transition-colors">
                           <Pencil className="w-3.5 h-3.5" />

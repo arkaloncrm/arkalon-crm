@@ -6,5 +6,6 @@ export const reportsApi = {
   commissionEarned: () => api.get('/reports/commission-earned'),
   commissionForecast: () => api.get('/reports/commission-forecast'),
   buSplit: () => api.get('/reports/bu-split'),
-  commissionByDeal: () => api.get('/reports/commission-by-deal'),
+  // params.paid: 'unpaid' | 'paid' | 'all' (omit/all = every deal)
+  commissionByDeal: (params) => api.get('/reports/commission-by-deal', { params }),
 };

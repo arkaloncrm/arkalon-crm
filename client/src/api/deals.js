@@ -10,6 +10,8 @@ export const dealsApi = {
   create: (data) => api.post('/deals', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   patch: (id, data) => api.patch(`/deals/${id}`, data),
+  // Batch mark commission paid/unpaid across several deals in one request.
+  markCommissionPaid: (ids, paid = true) => api.post('/deals/commission/mark-paid', { ids, paid }),
   delete: (id) => api.delete(`/deals/${id}`),
   updateStage: (id, stage) => api.patch(`/deals/${id}/stage`, { stage }),
   getContacts: (id) => api.get(`/deals/${id}/contacts`),
