@@ -45,31 +45,85 @@ function hasManualGross(deal) {
 // Inline-editable table cell. Shows display content with a pencil that appears
 // on row hover; a single click swaps in an input. Commits on blur/change,
 // reverts on Escape. `onCommit` is expected to handle its own errors and
-// never reject.
-function EditableCell({ value, type, options, children, onCommit }) {
+// never reject. If `confirmMessage` is set, committing a changed value shows
+// an inline Override/Cancel step first instead of saving immediately.
+function EditableCell({ value, type, options, children, onCommit, confirmMessage }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [confirming, setConfirming] = useState(false);
+
+  // Number fields compare a string draft against a numeric `value` — normalise
+  // both to the same type so re-blurring an unchanged number never falsely
+  // registers as a change (and, for line-item deals, never shows the override
+  // confirm step for nothing).
+  const normalise = (v) => {
+    if (v === '' || v === null || v === undefined) return null;
+    return type === 'number' ? Number(v) : v;
+  };
 
   const startEdit = (e) => {
     e.stopPropagation();
     setDraft(value ?? '');
     setEditing(true);
+    setConfirming(false);
   };
 
-  const commit = () => {
+  const finishEdit = () => {
+    const next = normalise(draft);
+    if (next === normalise(value)) { setEditing(false); return; }
+    if (confirmMessage) {
+      setConfirming(true);
+    } else {
+      setEditing(false);
+      onCommit(next);
+    }
+  };
+
+  const confirmYes = () => {
+    const next = normalise(draft);
     setEditing(false);
-    const next = draft === '' ? null : draft;
-    if (next === (value ?? null)) return;
+    setConfirming(false);
     onCommit(next);
+  };
+
+  const confirmNo = () => {
+    setDraft(value ?? '');
+    setEditing(false);
+    setConfirming(false);
   };
 
   const cancel = () => {
     setDraft(value ?? '');
     setEditing(false);
+    setConfirming(false);
   };
 
   const fieldCls =
     'px-2 py-1 text-sm border border-arkalon-blue rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30';
+
+  if (confirming) {
+    return (
+      <Td>
+        <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 whitespace-normal max-w-[220px]">
+          <span className="text-[11px] text-amber-700 font-opensans leading-snug">{confirmMessage}</span>
+          <div className="flex flex-col gap-1 flex-shrink-0">
+            <button
+              onClick={confirmYes}
+              className="px-2 py-0.5 text-[11px] rounded bg-arkalon-blue text-white font-montserrat font-semibold hover:bg-blue-700"
+            >
+              Override
+            </button>
+            <button
+              onClick={confirmNo}
+              className="px-2 py-0.5 text-[11px] rounded border border-arkalon-lightgrey text-slate-600 font-opensans hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Td>
+    );
+  }
 
   if (editing) {
     return (
@@ -80,7 +134,7 @@ function EditableCell({ value, type, options, children, onCommit }) {
               autoFocus
               value={draft ?? ''}
               onChange={e => setDraft(e.target.value)}
-              onBlur={commit}
+              onBlur={finishEdit}
               onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
               className={fieldCls}
             >
@@ -94,8 +148,8 @@ function EditableCell({ value, type, options, children, onCommit }) {
               step="0.01"
               value={draft ?? ''}
               onChange={e => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={e => { if (e.key === 'Escape') cancel(); else if (e.key === 'Enter') commit(); }}
+              onBlur={finishEdit}
+              onKeyDown={e => { if (e.key === 'Escape') cancel(); else if (e.key === 'Enter') finishEdit(); }}
               className={`${fieldCls} w-28 text-right`}
             />
           ) : (
@@ -104,7 +158,7 @@ function EditableCell({ value, type, options, children, onCommit }) {
               type="date"
               value={draft || ''}
               onChange={e => setDraft(e.target.value)}
-              onBlur={commit}
+              onBlur={finishEdit}
               onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
               className={fieldCls}
             />
@@ -418,6 +472,7 @@ export default function DealsList() {
                   <Th className="text-right">MRR</Th>
                   <Th className="text-right" sortable sorted={sortBy === 'total_contract_earnings'} direction={sortDir} onClick={() => handleSort('total_contract_earnings')}>Commission</Th>
                   <Th className="text-right" sortable sorted={sortBy === 'probability'} direction={sortDir} onClick={() => handleSort('probability')}>Prob%</Th>
+                  <Th className="text-right">Weighted</Th>
                   <Th>Next Action</Th>
                   <Th>BU</Th>
                   <Th></Th>
@@ -454,19 +509,14 @@ export default function DealsList() {
                         {formatDate(r.close_date)}
                       </span>
                     </EditableCell>
-                    {hasManualGross(r) ? (
-                      <EditableCell
-                        type="number"
-                        value={r.manual_gross_value}
-                        onCommit={(v) => handleGrossValueEdit(r, v)}
-                      >
-                        <span className="ml-auto text-right tabular-nums cell-strong">{formatCurrency(r.gross_total_value)}</span>
-                      </EditableCell>
-                    ) : (
-                      <Td className="text-right tabular-nums cell-strong">
-                        <span title="Computed from line items — open the deal to edit">{formatCurrency(r.gross_total_value)}</span>
-                      </Td>
-                    )}
+                    <EditableCell
+                      type="number"
+                      value={hasManualGross(r) ? r.manual_gross_value : r.gross_total_value}
+                      onCommit={(v) => handleGrossValueEdit(r, v)}
+                      confirmMessage={hasManualGross(r) ? undefined : "Override line-item total? Line items will no longer drive this deal's value."}
+                    >
+                      <span className="ml-auto text-right tabular-nums cell-strong">{formatCurrency(r.gross_total_value)}</span>
+                    </EditableCell>
                     <Td className="text-right tabular-nums">{r.business_unit === 'ASC' ? formatMrr(r.monthly_recurring_revenue) : '—'}</Td>
                     <Td className="text-right tabular-nums font-semibold cell-blue">
                       <span className="inline-flex items-center gap-2 justify-end">
@@ -475,6 +525,7 @@ export default function DealsList() {
                       </span>
                     </Td>
                     <Td className="text-right tabular-nums">{r.probability != null ? `${r.probability}%` : '—'}</Td>
+                    <Td className="text-right tabular-nums">{formatCurrency(r.weighted_value)}</Td>
                     <EditableCell
                       type="date"
                       value={r.next_action_date}

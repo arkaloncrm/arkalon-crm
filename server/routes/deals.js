@@ -803,7 +803,9 @@ router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const existingResult = await pool.query(
-      P('SELECT id, gross_total_value FROM deals WHERE id = ?'),
+      P(`SELECT id, gross_total_value, manual_gross_value, business_unit, deal_type,
+           contract_term_months, close_date, stage, account_id
+         FROM deals WHERE id = ?`),
       [id]
     );
     const existing = existingResult.rows[0];
@@ -844,6 +846,45 @@ router.patch('/:id', async (req, res) => {
         Math.round((existing.gross_total_value || 0) * stageInfo.probability / 100 * 100) / 100;
       setParts.push('probability = ?', 'forecast_category = ?', 'weighted_value = ?');
       params.push(stageInfo.probability, stageInfo.forecast_category, weighted_value);
+    }
+
+    // Stage and/or close_date can change the commission actually earned —
+    // Simply Seated's rate is tiered by close_date, and either field can shift
+    // which tier applies. gross_total_value/MRR are untouched by this route
+    // (unaffected by stage/close_date), so recomputing here — via the SAME
+    // calculateDealFinancials POST/PUT already use, fed the deal's real
+    // persisted line items — only ever changes commission_*, never the totals.
+    if (req.body.stage !== undefined || req.body.close_date !== undefined) {
+      const effectiveStage = req.body.stage !== undefined ? req.body.stage : existing.stage;
+      const effectiveCloseDate = req.body.close_date !== undefined
+        ? (req.body.close_date === '' ? null : req.body.close_date)
+        : existing.close_date;
+
+      const { rows: lineItemRows } = await pool.query(P(`
+        SELECT product_id, product_name, description, quantity, unit_price, unit_type, is_recurring, commission_pct
+        FROM deal_line_items WHERE deal_id = ?
+      `), [id]);
+
+      let context = {};
+      if (existing.business_unit === 'Simply Seated' && existing.account_id) {
+        const firstDealResult = await pool.query(P(`
+          SELECT MIN(close_date) AS first_date FROM deals
+          WHERE stage = 'Closed Won' AND business_unit = 'Simply Seated' AND account_id = ? AND id != ?
+        `), [existing.account_id, id]);
+        context = { firstDealDate: firstDealResult.rows[0]?.first_date || null };
+      }
+
+      const financials = calculateDealFinancials({
+        business_unit: existing.business_unit,
+        deal_type: existing.deal_type,
+        stage: effectiveStage,
+        contract_term_months: existing.contract_term_months,
+        manual_gross_value: existing.manual_gross_value,
+        close_date: effectiveCloseDate,
+      }, lineItemRows, context);
+
+      setParts.push('commission_percentage = ?', 'commission_amount = ?', 'total_contract_earnings = ?', 'commission_warning = ?');
+      params.push(financials.commission_percentage, financials.commission_amount, financials.total_contract_earnings, financials.commission_warning);
     }
 
     params.push(id);
