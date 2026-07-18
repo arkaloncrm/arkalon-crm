@@ -11,6 +11,7 @@ import { CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { tasksApi } from '../../api/tasks.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { formatLocalDatetime, formatDate } from '../../utils/formatDate.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 import { TASK_STATUSES, TASK_PRIORITIES, BUSINESS_UNITS } from '../../utils/constants.js';
 
 const PRIORITY_COLOURS = {
@@ -48,7 +49,7 @@ function TaskPhone({ phone, pill = false, onCall }) {
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-arkalon-blue text-sm font-semibold font-opensans active:bg-blue-100"
       >
         <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-        {phone}
+        {formatPhoneAU(phone)}
       </a>
     );
   }
@@ -59,7 +60,7 @@ function TaskPhone({ phone, pill = false, onCall }) {
       className="inline-flex items-center gap-1 text-arkalon-blue hover:underline text-sm font-opensans whitespace-nowrap"
     >
       <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-      {phone}
+      {formatPhoneAU(phone)}
     </a>
   );
 }

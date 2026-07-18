@@ -14,6 +14,7 @@ import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { BUSINESS_UNITS, LEAD_STATUSES, PRIORITY_COLOURS } from '../../utils/constants.js';
 import { formatRelative } from '../../utils/formatDate.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 
 const STATUS_COLOURS = {
   'New': 'bg-gray-100 text-gray-600',
@@ -404,7 +405,7 @@ export default function LeadsList() {
                         )}
                       </td>
                       <td className="px-3 text-slate-500 font-opensans whitespace-nowrap">{formatRelative(lead.updated_at)}</td>
-                      <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{lead.phone || '—'}</td>
+                      <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{formatPhoneAU(lead.phone) || '—'}</td>
                       <td className="px-3 text-slate-600 font-opensans">{lead.email || '—'}</td>
                       <td className="px-3">
                         <div className="flex items-center gap-1.5">

@@ -16,6 +16,7 @@ import api from '../../api/axios.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { BUSINESS_UNITS } from '../../utils/constants.js';
 import { formatDate } from '../../utils/formatDate.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 
 const BU_COLOURS = {
   'ASC': 'bg-blue-100 text-blue-700',
@@ -26,8 +27,10 @@ const PAGE_SIZE = 25;
 
 // Inline-editable table cell. Shows a faint pencil on row hover; double-click
 // swaps in a text input. Commits on blur, reverts on Escape. `onCommit` handles
-// its own errors and never rejects.
-function EditableCell({ value, type = 'text', onCommit }) {
+// its own errors and never rejects. `displayValue`, if given, is shown instead
+// of `value` in the read-only span (e.g. a formatted phone number) — the edit
+// input always starts from the raw `value` so storage is never touched by display formatting.
+function EditableCell({ value, displayValue, type = 'text', onCommit }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
@@ -72,7 +75,7 @@ function EditableCell({ value, type = 'text', onCommit }) {
         title="Double-click to edit"
         className="flex items-center gap-1.5 cursor-text min-h-[1.5rem]"
       >
-        <span>{value || '—'}</span>
+        <span>{(displayValue ?? value) || '—'}</span>
         <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
       </div>
     </td>
@@ -296,7 +299,7 @@ export default function ContactsList() {
                 )}
                 <div className="mt-2 space-y-0.5">
                   <div className="text-xs text-slate-500 font-opensans truncate">{contact.email || '—'}</div>
-                  <div className="text-xs text-slate-500 font-opensans truncate">{contact.phone || contact.mobile || '—'}</div>
+                  <div className="text-xs text-slate-500 font-opensans truncate">{formatPhoneAU(contact.phone || contact.mobile) || '—'}</div>
                 </div>
                 <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-slate-100">
                   {contact.linkedin_url && (
@@ -397,8 +400,8 @@ export default function ContactsList() {
                   </td>
                   <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{contact.title || '—'}</td>
                   <EditableCell value={contact.email} type="email" onCommit={v => handleInlineEdit(contact, 'email', v)} />
-                  <EditableCell value={contact.phone} type="text" onCommit={v => handleInlineEdit(contact, 'phone', v)} />
-                  <EditableCell value={contact.mobile} type="text" onCommit={v => handleInlineEdit(contact, 'mobile', v)} />
+                  <EditableCell value={contact.phone} displayValue={formatPhoneAU(contact.phone)} type="text" onCommit={v => handleInlineEdit(contact, 'phone', v)} />
+                  <EditableCell value={contact.mobile} displayValue={formatPhoneAU(contact.mobile)} type="text" onCommit={v => handleInlineEdit(contact, 'mobile', v)} />
                   <td className="px-3 text-slate-500 font-opensans whitespace-nowrap">{formatDate(contact.created_at)}</td>
                   <td className="px-3">
                     <div className="flex items-center gap-1.5">

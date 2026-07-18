@@ -15,6 +15,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { STAGE_COLOURS } from '../../utils/constants.js';
 import { formatDate, formatDateTime } from '../../utils/formatDate.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 
 const BU_COLOURS = {
   'ASC': 'bg-blue-100 text-blue-700',
@@ -305,7 +306,7 @@ export default function AccountDetail() {
                         </td>
                         <td className="px-3 text-slate-600 font-opensans">{c.title || '—'}</td>
                         <td className="px-3 text-slate-600 font-opensans">{c.email || '—'}</td>
-                        <td className="px-3 text-slate-600 font-opensans">{c.phone || '—'}</td>
+                        <td className="px-3 text-slate-600 font-opensans">{formatPhoneAU(c.phone) || '—'}</td>
                         <td className="px-3">
                           <button onClick={() => navigate(`/contacts/${c.id}/edit`)} className="p-1 text-slate-400 hover:text-arkalon-blue">
                             <Pencil className="w-3.5 h-3.5" />

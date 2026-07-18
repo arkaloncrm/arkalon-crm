@@ -7,6 +7,7 @@ import { picklistsApi } from '../../api/picklists.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { ACTIVITY_OUTCOMES, BUSINESS_UNITS } from '../../utils/constants.js';
 import { formatDateTime, toSqliteUtcFromLocalInput } from '../../utils/formatDate.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 
 // Constant is mapped to {value,label} and kept as the fallback / loading state
 // so the dropdown is never empty while the picklist loads (or if the API fails).
@@ -26,9 +27,10 @@ function useActivityOutcomes() {
   return outcomes;
 }
 
-// Click-to-call link. The href dials the number; the onClick opens the call
-// logging panel via the supplied onCall callback. Propagation is stopped so the
-// link works inside clickable parent rows/cards.
+// Click-to-call link. The href dials the raw number; the onClick opens the
+// call logging panel via the supplied onCall callback (also passed the raw
+// number — only the visible text is display-formatted). Propagation is
+// stopped so the link works inside clickable parent rows/cards.
 export function PhoneLink({ phone, onCall, className = '' }) {
   if (!phone) return null;
   return (
@@ -37,7 +39,7 @@ export function PhoneLink({ phone, onCall, className = '' }) {
       onClick={(e) => { e.stopPropagation(); onCall(phone); }}
       className={`text-arkalon-blue hover:underline ${className}`}
     >
-      {phone}
+      {formatPhoneAU(phone)}
     </a>
   );
 }
@@ -354,7 +356,7 @@ export function CallLogPanel({ call, onClose, onLogged }) {
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans block">Phone</span>
-          <span className="text-sm font-opensans text-slate-700">{call.phone}</span>
+          <span className="text-sm font-opensans text-slate-700">{formatPhoneAU(call.phone)}</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase tracking-wide font-opensans block">Time</span>

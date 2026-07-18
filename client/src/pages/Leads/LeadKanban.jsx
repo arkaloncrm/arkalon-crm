@@ -5,6 +5,7 @@ import { leadsApi } from '../../api/leads.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { LEAD_STATUSES, PRIORITY_COLOURS } from '../../utils/constants.js';
 import { formatRelative } from '../../utils/formatDate.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 
 const STATUS_COLOURS = {
   'New': { header: 'bg-gray-100 text-gray-600', border: 'border-l-gray-400' },
@@ -50,7 +51,7 @@ function LeadCard({ lead, onDragStart, onClick }) {
         )}
       </div>
       {lead.phone && (
-        <div className="text-xs text-slate-500 font-opensans">{lead.phone}</div>
+        <div className="text-xs text-slate-500 font-opensans">{formatPhoneAU(lead.phone)}</div>
       )}
       <div className="text-[10px] text-slate-400 font-opensans mt-1.5">
         Updated {formatRelative(lead.updated_at)}

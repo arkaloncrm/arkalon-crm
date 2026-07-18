@@ -10,6 +10,7 @@ import { accountsApi } from '../../api/accounts.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { BUSINESS_UNITS, INDUSTRIES } from '../../utils/constants.js';
 import { formatDate } from '../../utils/formatDate.js';
+import { formatPhoneAU } from '../../utils/formatPhone.js';
 
 const BU_COLOURS = {
   'ASC': 'bg-blue-100 text-blue-700',
@@ -220,7 +221,7 @@ export default function AccountsList() {
                 </div>
                 <div className="mt-2 space-y-0.5">
                   <div className="text-xs text-slate-500 font-opensans truncate">{account.industry || 'No industry'}</div>
-                  <div className="text-xs text-slate-500 font-opensans truncate">{account.phone || 'No phone'}</div>
+                  <div className="text-xs text-slate-500 font-opensans truncate">{formatPhoneAU(account.phone) || 'No phone'}</div>
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
                   <span className="text-xs text-slate-400 font-opensans">
@@ -309,7 +310,7 @@ export default function AccountsList() {
                     {account.business_unit && <Badge className={BU_COLOURS[account.business_unit] || 'bg-gray-100 text-gray-600'}>{account.business_unit}</Badge>}
                   </td>
                   <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{account.industry || '—'}</td>
-                  <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{account.phone || '—'}</td>
+                  <td className="px-3 text-slate-600 font-opensans whitespace-nowrap">{formatPhoneAU(account.phone) || '—'}</td>
                   <td className="px-3 font-opensans">
                     {account.website ? (
                       <a href={account.website.startsWith('http') ? account.website : `https://${account.website}`} target="_blank" rel="noopener noreferrer" className="text-arkalon-blue hover:underline flex items-center gap-1">
