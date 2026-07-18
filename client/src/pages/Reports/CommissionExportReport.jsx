@@ -17,6 +17,23 @@ function currentMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// <input type="month"> has unreliable/absent native picker support on iOS
+// Safari — on the PWA this renders as an inert-looking field, so taps on it
+// appear to do nothing. Two plain <select>s produce the identical "YYYY-MM"
+// value with universal touch support, no server contract change.
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function yearOptions() {
+  const currentYear = new Date().getFullYear();
+  // A few years back (historical statements) through next year (early forecasting).
+  const years = [];
+  for (let y = currentYear - 3; y <= currentYear + 1; y++) years.push(y);
+  return years;
+}
+
 // CSV column sets differ by business unit (per the monthly statement layout).
 const SS_CSV_COLUMNS = [
   { label: 'Deal Name', getValue: (r) => r.deal_name || '' },
@@ -122,12 +139,26 @@ export default function CommissionExportReport() {
   const filters = (
     <>
       <FilterField label="Month">
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className={selectClass}
-        />
+        <div className="flex items-center gap-1.5">
+          <select
+            value={month.slice(5, 7)}
+            onChange={(e) => setMonth(`${month.slice(0, 4)}-${e.target.value}`)}
+            className={selectClass}
+            aria-label="Month"
+          >
+            {MONTH_NAMES.map((name, i) => (
+              <option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>
+            ))}
+          </select>
+          <select
+            value={month.slice(0, 4)}
+            onChange={(e) => setMonth(`${e.target.value}-${month.slice(5, 7)}`)}
+            className={selectClass}
+            aria-label="Year"
+          >
+            {yearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
       </FilterField>
       <FilterField label="Business Unit">
         <select value={bu} onChange={(e) => setBu(e.target.value)} className={selectClass}>

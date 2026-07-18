@@ -1,181 +1,176 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
-import Badge from '../../components/UI/Badge.jsx';
 import { reportsApi } from '../../api/reports.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
-import { formatDate } from '../../utils/formatDate.js';
 import { exportToCsv } from '../../utils/exportCsv.js';
-import { STAGE_COLOURS } from '../../utils/constants.js';
 import { useToast } from '../../context/ToastContext.jsx';
-import { ReportLoading, ReportEmpty, ExportButton, BU_COLOURS } from './reportPrimitives.jsx';
+import { ReportShell, ReportLoading, ReportEmpty, ExportButton, FilterField } from './reportPrimitives.jsx';
 
-const CSV_COLUMNS = [
-  { label: 'Month', getValue: (r) => r._month_label || '' },
-  { label: 'Deal Name', key: 'deal_name' },
-  { label: 'Account', getValue: (r) => r.account_name || '' },
-  { label: 'BU', key: 'business_unit' },
-  { label: 'Stage', key: 'stage' },
-  { label: 'Close Date', getValue: (r) => r.close_date || '' },
-  { label: 'Gross Value', getValue: (r) => r.gross_total_value || 0, currency: true },
-  { label: 'Commission', getValue: (r) => r.total_contract_earnings || 0, currency: true },
-];
+const selectClass =
+  'px-3 py-1.5 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30';
 
-// "Q2 2026" -> the three calendar months of that quarter.
-function quarterMonths(quarterLabel) {
-  const m = /Q(\d)\s+(\d{4})/.exec(quarterLabel || '');
-  if (!m) return [];
-  const firstMonth = (Number(m[1]) - 1) * 3; // 0-indexed January = 0
-  const year = Number(m[2]);
-  return [0, 1, 2].map((offset) => {
-    const d = new Date(year, firstMonth + offset, 1);
-    return {
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: d.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }),
-    };
-  });
+function currentYearRange() {
+  const y = new Date().getFullYear();
+  return { from: `${y}-01-01`, to: `${y}-12-31` };
 }
 
+const CSV_COLUMNS = [
+  { label: 'Month', key: 'label' },
+  { label: 'Won Deals', getValue: (r) => r.won.count },
+  { label: 'Won Gross', getValue: (r) => r.won.gross_total, currency: true },
+  { label: 'Won Commission', getValue: (r) => r.won.commission_total, currency: true },
+  { label: 'Won Commission Paid', getValue: (r) => r.won.paid_total, currency: true },
+  { label: 'Won Commission Unpaid', getValue: (r) => r.won.unpaid_total, currency: true },
+  { label: 'Open Deals', getValue: (r) => r.open.count },
+  { label: 'Open Gross', getValue: (r) => r.open.gross_total, currency: true },
+  { label: 'Open Commission (if won)', getValue: (r) => r.open.commission_total, currency: true },
+  { label: 'Open Commission (weighted)', getValue: (r) => r.open.weighted_total, currency: true },
+];
+
+// Reconciled with the Dashboard's "My Commission Pipeline" widget by
+// construction — both call GET /api/reports/commission-by-month and read the
+// same fields (open.weighted_total for the projection). Nothing here is
+// recalculated: total_contract_earnings / commission_paid / probability are
+// kept current by the deal POST/PUT/PATCH routes.
 export default function CommissionForecastReport() {
-  const navigate = useNavigate();
   const { addToast } = useToast();
+  const defaultRange = currentYearRange();
+  const [from, setFrom] = useState(defaultRange.from);
+  const [to, setTo] = useState(defaultRange.to);
+  const [bu, setBu] = useState('');
+  const [paid, setPaid] = useState('all');
+  const [stageGroup, setStageGroup] = useState('all');
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    reportsApi.commissionForecast()
-      .then((res) => setData(res.data.data || { deals: [], quarter_label: '' }))
+    setData(null);
+    let cancelled = false;
+    reportsApi.commissionByMonth({
+      date_from: from, date_to: to, business_unit: bu || undefined,
+      paid, stage_group: stageGroup,
+    })
+      .then((res) => { if (!cancelled) setData(res.data.data); })
       .catch(() => {
-        setData({ deals: [], quarter_label: '' });
-        addToast('Failed to load commission forecast', 'error');
+        if (!cancelled) {
+          setData({ months: [], totals: { won: {}, open: {} } });
+          addToast('Failed to load commission by month report', 'error');
+        }
       });
-  }, []);
+    return () => { cancelled = true; };
+  }, [from, to, bu, paid, stageGroup]);
 
-  const deals = data?.deals || [];
-  const quarterLabel = data?.quarter_label || 'this quarter';
+  const months = useMemo(() => (data?.months || []).slice().reverse(), [data]);
+  const totals = data?.totals;
 
-  const months = useMemo(() => {
-    const buckets = quarterMonths(data?.quarter_label);
-    return buckets.map((month) => {
-      const monthDeals = deals.filter((d) => String(d.close_date || '').slice(0, 7) === month.key);
-      return {
-        ...month,
-        deals: monthDeals,
-        subtotal: monthDeals.reduce((s, d) => s + (d.total_contract_earnings || 0), 0),
-      };
-    });
-  }, [data]);
+  const showWon = stageGroup !== 'open';
+  const showOpen = stageGroup !== 'won';
 
-  const grandTotal = useMemo(
-    () => deals.reduce((s, d) => s + (d.total_contract_earnings || 0), 0),
-    [deals],
-  );
-
-  const csvRows = useMemo(
-    () => months.flatMap((m) => m.deals.map((d) => ({ ...d, _month_label: m.label }))),
-    [months],
+  const filters = (
+    <>
+      <FilterField label="Close From">
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={selectClass} />
+      </FilterField>
+      <FilterField label="Close To">
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={selectClass} />
+      </FilterField>
+      <FilterField label="Business Unit">
+        <select value={bu} onChange={(e) => setBu(e.target.value)} className={selectClass}>
+          <option value="">All</option>
+          <option value="ASC">ASC</option>
+          <option value="Simply Seated">Simply Seated</option>
+        </select>
+      </FilterField>
+      <FilterField label="Stage Group">
+        <select value={stageGroup} onChange={(e) => setStageGroup(e.target.value)} className={selectClass}>
+          <option value="all">All</option>
+          <option value="won">Closed Won only</option>
+          <option value="open">Open pipeline only</option>
+        </select>
+      </FilterField>
+      <FilterField label="Paid Status">
+        <select value={paid} onChange={(e) => setPaid(e.target.value)} className={selectClass} disabled={stageGroup === 'open'}>
+          <option value="all">All</option>
+          <option value="unpaid">Unpaid only</option>
+          <option value="paid">Paid only</option>
+        </select>
+      </FilterField>
+    </>
   );
 
   if (data === null) {
-    return <div className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm"><ReportLoading /></div>;
-  }
-
-  if (deals.length === 0) {
-    return (
-      <div className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm">
-        <ReportEmpty message={`No open deals are forecast to close in ${quarterLabel}.`} />
-      </div>
-    );
+    return <ReportShell filters={filters}><ReportLoading /></ReportShell>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <span className="text-xs font-montserrat font-semibold text-slate-400 uppercase tracking-wide">
-          Forecast Commission — {quarterLabel}
-        </span>
-        <ExportButton onClick={() => exportToCsv('commission_forecast', csvRows, CSV_COLUMNS)} disabled={csvRows.length === 0} />
-      </div>
-
-      {months.slice().reverse().map((month) => (
-        <div key={month.key} className="bg-white border border-arkalon-lightgrey rounded-lg shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-arkalon-lightgrey bg-slate-50">
-            <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm">
-              {month.label}
-              <span className="ml-2 text-xs font-opensans font-normal text-slate-400">
-                {month.deals.length} deal{month.deals.length === 1 ? '' : 's'}
-              </span>
-            </h3>
-            <span className="font-montserrat font-bold text-sm" style={{ color: '#0073C6' }}>
-              {formatCurrency(month.subtotal, 2)}
-            </span>
+      <ReportShell
+        filters={filters}
+        action={<ExportButton onClick={() => exportToCsv('commission_by_month', months, CSV_COLUMNS)} disabled={months.length === 0} />}
+      >
+        {months.length === 0 ? (
+          <ReportEmpty message="No deals match the selected filters and date range." />
+        ) : (
+          <div className="divide-y divide-arkalon-lightgrey">
+            {months.map((m) => (
+              <div key={m.month} className="px-4 sm:px-5 py-4">
+                <h3 className="font-montserrat font-semibold text-arkalon-navy text-sm mb-3">{m.label}</h3>
+                <div className={`grid gap-3 ${showWon && showOpen ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                  {showWon && (
+                    <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                      <div className="text-[11px] font-montserrat font-bold text-green-700 uppercase tracking-wide mb-1.5">
+                        Closed Won — Actual ({m.won.count} deal{m.won.count === 1 ? '' : 's'})
+                      </div>
+                      <div className="text-xl font-montserrat font-bold text-green-800">{formatCurrency(m.won.commission_total, 2)}</div>
+                      <div className="flex items-center gap-3 mt-1.5 text-xs font-opensans text-green-700">
+                        <span>Paid {formatCurrency(m.won.paid_total, 0)}</span>
+                        <span>·</span>
+                        <span>Unpaid {formatCurrency(m.won.unpaid_total, 0)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {showOpen && (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                      <div className="text-[11px] font-montserrat font-bold text-blue-700 uppercase tracking-wide mb-1.5">
+                        Open Pipeline — Projected ({m.open.count} deal{m.open.count === 1 ? '' : 's'})
+                      </div>
+                      <div className="text-xl font-montserrat font-bold text-blue-800">{formatCurrency(m.open.weighted_total, 2)}</div>
+                      <div className="mt-1.5 text-xs font-opensans text-blue-700">
+                        {formatCurrency(m.open.commission_total, 0)} if all close won (weighted by stage probability)
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-          {month.deals.length === 0 ? (
-            <div className="px-5 py-4 text-sm text-slate-400 font-opensans">
-              No deals forecast to close in {month.label}.
+        )}
+      </ReportShell>
+
+      {totals && (months.length > 0) && (
+        <div className={`grid gap-3 ${showWon && showOpen ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+          {showWon && (
+            <div className="bg-white border-2 border-green-600 rounded-lg px-5 py-4">
+              <div className="text-xs font-montserrat font-bold text-slate-400 uppercase tracking-widest mb-1">
+                Total Closed Won — Actual
+              </div>
+              <div className="text-2xl font-montserrat font-bold text-green-700">{formatCurrency(totals.won.commission_total, 2)}</div>
+              <div className="text-xs text-slate-400 font-opensans mt-1">
+                {formatCurrency(totals.won.paid_total, 0)} paid · {formatCurrency(totals.won.unpaid_total, 0)} unpaid
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <Thead>
-                  <tr>
-                    <Th>Deal Name</Th>
-                    <Th>Account</Th>
-                    <Th>BU</Th>
-                    <Th>Stage</Th>
-                    <Th>Close Date</Th>
-                    <Th>Gross Value</Th>
-                    <Th>Commission</Th>
-                  </tr>
-                </Thead>
-                <Tbody>
-                  {month.deals.map((d) => (
-                    <Tr key={d.id}>
-                      <Td>
-                        <button
-                          onClick={() => navigate(`/deals/${d.id}`)}
-                          className="font-semibold text-arkalon-blue hover:underline font-opensans"
-                        >
-                          {d.deal_name}
-                        </button>
-                      </Td>
-                      <Td>{d.account_name || '—'}</Td>
-                      <Td>
-                        <Badge className={BU_COLOURS[d.business_unit] || 'bg-gray-100 text-gray-600'}>
-                          {d.business_unit}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Badge className={STAGE_COLOURS[d.stage] || 'bg-gray-100 text-gray-700'}>{d.stage}</Badge>
-                      </Td>
-                      <Td>{formatDate(d.close_date)}</Td>
-                      <Td>{formatCurrency(d.gross_total_value, 0)}</Td>
-                      <Td>
-                        <span className="font-bold" style={{ color: '#0073C6' }}>
-                          {formatCurrency(d.total_contract_earnings, 2)}
-                        </span>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+          )}
+          {showOpen && (
+            <div className="bg-white border-2 border-arkalon-blue rounded-lg px-5 py-4">
+              <div className="text-xs font-montserrat font-bold text-slate-400 uppercase tracking-widest mb-1">
+                Total Open Pipeline — Projected
+              </div>
+              <div className="text-2xl font-montserrat font-bold" style={{ color: '#0073C6' }}>{formatCurrency(totals.open.weighted_total, 2)}</div>
+              <div className="text-xs text-slate-400 font-opensans mt-1">
+                {formatCurrency(totals.open.commission_total, 0)} if all close won
+              </div>
             </div>
           )}
         </div>
-      ))}
-
-      <div className="bg-white border-2 border-arkalon-blue rounded-lg px-5 py-4 flex items-center justify-between">
-        <div>
-          <div className="text-xs font-montserrat font-bold text-slate-400 uppercase tracking-widest mb-1">
-            Total Forecast Commission — {quarterLabel}
-          </div>
-          <div className="text-xs text-slate-400 font-opensans">
-            {deals.length} open deal{deals.length === 1 ? '' : 's'} closing this quarter
-          </div>
-        </div>
-        <div className="text-3xl font-montserrat font-bold" style={{ color: '#0073C6' }}>
-          {formatCurrency(grandTotal, 2)}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -331,6 +331,96 @@ router.get('/bu-split', async (req, res) => {
   }
 });
 
+// GET /api/reports/commission-by-month — single source of truth for
+// "commission by month, Closed Won actuals vs open-pipeline projected".
+// The Dashboard's My Commission Pipeline widget and the Commission by Month
+// report both call this exact endpoint so their figures can never diverge.
+//
+// Read-only aggregation over already-computed columns — total_contract_earnings,
+// commission_paid, and probability are kept current by the POST/PUT routes and
+// (since PATCH /api/deals/:id gained commission recompute on stage/close_date
+// changes) by inline edits too, so this never recalculates anything itself.
+router.get('/commission-by-month', async (req, res) => {
+  try {
+    const { date_from, date_to, business_unit, paid, stage_group } = req.query;
+
+    const validBUs = ['ASC', 'Simply Seated'];
+    const buFilter = validBUs.includes(business_unit) ? business_unit : null;
+
+    // Default window: this calendar year (Sydney) — a sane range for a caller
+    // that wants "this month/quarter/year" without specifying dates itself.
+    const now = DateTime.now().setZone('Australia/Sydney');
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(date_from) ? date_from : now.startOf('year').toISODate();
+    const to = /^\d{4}-\d{2}-\d{2}$/.test(date_to) ? date_to : now.endOf('year').toISODate();
+
+    // Closed Lost is never "earned" or "pipeline" — excluded everywhere in
+    // this codebase's commission views, and here too.
+    const where = [`deals.stage != 'Closed Lost'`, 'deals.close_date IS NOT NULL', 'deals.close_date >= ?', 'deals.close_date <= ?'];
+    const params = [from, to];
+
+    if (buFilter) { where.push('deals.business_unit = ?'); params.push(buFilter); }
+
+    if (stage_group === 'won') where.push(`deals.stage = 'Closed Won'`);
+    else if (stage_group === 'open') where.push(`deals.stage != 'Closed Won'`);
+
+    // Paid/unpaid only has meaning for Closed Won rows — open deals pass
+    // through the filter untouched rather than being excluded by it.
+    if (paid === 'paid') where.push(`(deals.stage != 'Closed Won' OR deals.commission_paid = true)`);
+    else if (paid === 'unpaid') where.push(`(deals.stage != 'Closed Won' OR deals.commission_paid = false)`);
+
+    const { rows } = await pool.query(P(`
+      SELECT
+        TO_CHAR(deals.close_date, 'YYYY-MM') AS month,
+        CASE WHEN deals.stage = 'Closed Won' THEN 'won' ELSE 'open' END AS bucket,
+        COUNT(*) AS count,
+        COALESCE(SUM(deals.gross_total_value), 0) AS gross_total,
+        COALESCE(SUM(deals.total_contract_earnings), 0) AS commission_total,
+        COALESCE(SUM(CASE WHEN deals.commission_paid THEN deals.total_contract_earnings ELSE 0 END), 0) AS paid_total,
+        COALESCE(SUM(CASE WHEN NOT deals.commission_paid THEN deals.total_contract_earnings ELSE 0 END), 0) AS unpaid_total,
+        COALESCE(SUM(deals.total_contract_earnings * deals.probability / 100.0), 0) AS weighted_total
+      FROM deals
+      WHERE ${where.join(' AND ')}
+      GROUP BY month, bucket
+      ORDER BY month ASC
+    `), params);
+
+    const blankBucket = () => ({ count: 0, gross_total: 0, commission_total: 0, paid_total: 0, unpaid_total: 0, weighted_total: 0 });
+    const monthMap = new Map();
+    for (const row of rows) {
+      if (!monthMap.has(row.month)) monthMap.set(row.month, { won: blankBucket(), open: blankBucket() });
+      monthMap.get(row.month)[row.bucket] = {
+        count: row.count,
+        gross_total: row.gross_total,
+        commission_total: row.commission_total,
+        paid_total: row.paid_total,
+        unpaid_total: row.unpaid_total,
+        weighted_total: row.weighted_total,
+      };
+    }
+
+    const months = [...monthMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, buckets]) => ({
+        month,
+        label: DateTime.fromISO(`${month}-01`).toFormat('LLLL yyyy'),
+        ...buckets,
+      }));
+
+    const totals = months.reduce((acc, m) => {
+      for (const bucket of ['won', 'open']) {
+        for (const field of ['count', 'gross_total', 'commission_total', 'paid_total', 'unpaid_total', 'weighted_total']) {
+          acc[bucket][field] += m[bucket][field] || 0;
+        }
+      }
+      return acc;
+    }, { won: blankBucket(), open: blankBucket() });
+
+    res.json({ success: true, data: { months, totals, date_from: from, date_to: to } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/reports/commission-by-deal — Report 6: every deal, open + closed.
 // Deliberately unbounded — the /api/deals list caps at 100 rows, which would
 // silently truncate this report. Sorting and filtering happen client-side.

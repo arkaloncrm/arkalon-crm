@@ -14,6 +14,7 @@ import { leadsApi } from '../api/leads.js';
 import { tasksApi } from '../api/tasks.js';
 import { activitiesApi } from '../api/activities.js';
 import { dealsApi } from '../api/deals.js';
+import { reportsApi } from '../api/reports.js';
 
 const STATUS_COLOURS = {
   'New': 'bg-gray-100 text-gray-600',
@@ -52,28 +53,23 @@ function isOverdue(task) {
   return new Date(iso) < new Date();
 }
 
-// Weighted commission per deal = total_contract_earnings (Stuart's earnings)
-// × probability. Bucketed by close_date into the current month / quarter / year.
-// Closed Lost deals are excluded (open_only already drops them; guarded here too).
-function computeCommission(deals) {
+// Weighted commission (total_contract_earnings × probability) for OPEN deals,
+// bucketed by close_date into the current month / quarter / year — sourced
+// from the same /reports/commission-by-month endpoint the Commission by Month
+// report uses, so this widget can never drift from that report's numbers.
+function sumOpenWeighted(months, predicate) {
+  return months.filter(predicate).reduce((sum, m) => sum + (m.open?.weighted_total || 0), 0);
+}
+
+function bucketCommission(months) {
   const now = new Date();
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth();
-  const curQuarter = Math.floor(curMonth / 3);
-  let month = 0, quarter = 0, year = 0;
-  for (const d of deals) {
-    if (d.stage === 'Closed Lost' || !d.close_date) continue;
-    const parts = String(d.close_date).slice(0, 10).split('-').map(Number);
-    if (parts.length !== 3 || parts.some(Number.isNaN)) continue;
-    const [y, m] = parts;
-    if (y !== curYear) continue;
-    const mIdx = m - 1;
-    const weighted = (Number(d.total_contract_earnings) || 0) * (Number(d.probability) || 0) / 100;
-    year += weighted;
-    if (Math.floor(mIdx / 3) === curQuarter) quarter += weighted;
-    if (mIdx === curMonth) month += weighted;
-  }
-  return { month, quarter, year };
+  const curMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const curQuarter = Math.floor(now.getMonth() / 3);
+  return {
+    month: sumOpenWeighted(months, (m) => m.month === curMonthKey),
+    quarter: sumOpenWeighted(months, (m) => Math.floor((Number(m.month.slice(5, 7)) - 1) / 3) === curQuarter),
+    year: sumOpenWeighted(months, () => true), // the fetch below already windows to this year
+  };
 }
 
 export default function Dashboard() {
@@ -123,8 +119,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    dealsApi.getAll({ open_only: 'true', limit: 100 })
-      .then(res => setCommission(computeCommission(res.data.data || [])))
+    // No date params — defaults to this (Sydney) calendar year server-side,
+    // which is exactly the window "this year" needs and a superset of month/quarter.
+    reportsApi.commissionByMonth({ stage_group: 'open' })
+      .then(res => setCommission(bucketCommission(res.data.data?.months || [])))
       .catch(() => setCommission({ month: 0, quarter: 0, year: 0 }));
   }, []);
 

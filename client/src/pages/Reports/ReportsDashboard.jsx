@@ -21,9 +21,9 @@ const REPORTS = [
   },
   {
     id: 'commission-forecast',
-    label: 'Commission Forecast',
+    label: 'Commission by Month',
     icon: DollarSign,
-    description: 'Forecast commission this quarter, grouped by month',
+    description: 'Closed Won actuals vs open pipeline, by month — filterable, reconciled with the dashboard',
     component: CommissionForecastReport,
   },
   {
