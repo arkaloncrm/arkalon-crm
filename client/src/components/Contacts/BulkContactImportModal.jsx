@@ -292,6 +292,8 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
                     <th className="px-2 py-1.5 w-8"></th>
                     <th className="px-2 py-1.5 w-14 text-xs font-montserrat text-slate-500">Order</th>
                     <th className="px-2 py-1.5 text-xs font-montserrat text-slate-500">Name</th>
+                    <th className="px-2 py-1.5 text-xs font-montserrat text-slate-500">Company</th>
+                    <th className="px-2 py-1.5 text-xs font-montserrat text-slate-500">Title</th>
                     <th className="px-2 py-1.5 text-xs font-montserrat text-slate-500">Phone</th>
                     <th className="px-2 py-1.5 text-xs font-montserrat text-slate-500">Email</th>
                     <th className="px-2 py-1.5 w-16"></th>
@@ -314,12 +316,9 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
                         <td className="px-2 py-1.5 text-arkalon-navy font-semibold whitespace-nowrap">
                           {[r.first_name, r.last_name].filter(Boolean).join(' ') || '—'}
                           {r.warm && <Sparkles className="inline w-3.5 h-3.5 ml-1 text-amber-500" title="Known name — has history in CRM" />}
-                          {(r.company || r.title) && (
-                            <span className="block text-xs font-normal text-slate-400">
-                              {[r.title, r.company].filter(Boolean).join(' · ')}
-                            </span>
-                          )}
                         </td>
+                        <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap">{r.company || '—'}</td>
+                        <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap max-w-[220px] truncate" title={r.title || ''}>{r.title || '—'}</td>
                         <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap">{r.phone || '—'}</td>
                         <td className="px-2 py-1.5 text-slate-600">{r.email || '—'}</td>
                         <td className="px-2 py-1.5">
@@ -338,7 +337,7 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
                     );
                   })}
                   {rows.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-4 text-center text-slate-400">No importable rows found</td></tr>
+                    <tr><td colSpan={8} className="px-3 py-4 text-center text-slate-400">No importable rows found</td></tr>
                   )}
                 </tbody>
               </table>

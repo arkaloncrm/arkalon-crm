@@ -4,7 +4,8 @@
   "description": "Arkalon CRM Express server",
   "main": "index.js",
   "scripts": {
-    "test:commandbar": "node commandBar/__tests__/textMatch.test.js"
+    "test:commandbar": "node commandBar/__tests__/textMatch.test.js",
+    "test:bulkimport": "node routes/__tests__/bulkImport.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

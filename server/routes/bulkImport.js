@@ -81,8 +81,13 @@ function extractPhone(v) {
 // research sheets — never real data, always ignored.
 const PRIORITY_TIER_RE = /^[a-z]\d{1,2}$/i;
 
-// A field containing one of these words is a job title, wherever it appears.
-const TITLE_RE = /\b(manager|director|head|officer|ceo|founder|vp|president|lead|coordinator|specialist)\b/i;
+// A field containing one of these words is a job title, wherever it appears —
+// including combined titles like "Head of Expansion ANZ / Country Leader"
+// (matched as a substring, so "/"-joined dual titles need no special handling).
+// "lead" and "leader" are both listed: \blead\b alone would not match "Leader"
+// (no word boundary between "d" and "e"). "founder" alone already matches
+// "Co-founder" (the hyphen is a non-word character, so \bfounder\b still hits).
+const TITLE_RE = /\b(manager|director|head|officer|ceo|founder|co-founder|vp|president|lead|leader|coordinator|specialist|executive|gm|chief)\b/i;
 
 // First row is a header if it names columns rather than containing data —
 // e.g. "Name  Phone  Email" — i.e. keyword hit with no email and few digits.
@@ -523,5 +528,15 @@ router.post('/confirm', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Express routers are plain functions, so pure parsing helpers can be attached
+// directly for the regression test harness (server/routes/__tests__/) without
+// changing how server/index.js requires/mounts this module.
+router.classifyFields = classifyFields;
+router.parseRawText = parseRawText;
+router.splitName = splitName;
+router.extractPhone = extractPhone;
+router.normalisePhone = normalisePhone;
+router.TITLE_RE = TITLE_RE;
 
 module.exports = router;
