@@ -35,9 +35,17 @@ function isCloseDatePast(dateStr, stage) {
   return new Date(dateStr) < new Date();
 }
 
+// Mirrors dealFinancials.js's hasManualGross check (read-only — no calculation
+// logic lives here) so the list knows which deals may have their gross value
+// edited directly vs. only via line items on the deal detail page.
+function hasManualGross(deal) {
+  return deal.manual_gross_value !== null && deal.manual_gross_value !== undefined && String(deal.manual_gross_value).trim() !== '';
+}
+
 // Inline-editable table cell. Shows display content with a pencil that appears
-// on row hover; double-click swaps in an input. Commits on blur, reverts on
-// Escape. `onCommit` is expected to handle its own errors and never reject.
+// on row hover; a single click swaps in an input. Commits on blur/change,
+// reverts on Escape. `onCommit` is expected to handle its own errors and
+// never reject.
 function EditableCell({ value, type, options, children, onCommit }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -78,6 +86,18 @@ function EditableCell({ value, type, options, children, onCommit }) {
             >
               {options.map(o => <option key={o}>{o}</option>)}
             </select>
+          ) : type === 'number' ? (
+            <input
+              autoFocus
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft ?? ''}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => { if (e.key === 'Escape') cancel(); else if (e.key === 'Enter') commit(); }}
+              className={`${fieldCls} w-28 text-right`}
+            />
           ) : (
             <input
               autoFocus
@@ -97,10 +117,9 @@ function EditableCell({ value, type, options, children, onCommit }) {
   return (
     <Td>
       <div
-        onClick={e => e.stopPropagation()}
-        onDoubleClick={startEdit}
-        title="Double-click to edit"
-        className="flex items-center gap-1.5 cursor-text min-h-[1.5rem]"
+        onClick={startEdit}
+        title="Click to edit"
+        className="flex items-center gap-1.5 cursor-pointer min-h-[1.5rem]"
       >
         {children}
         <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
@@ -189,6 +208,78 @@ export default function DealsList() {
     } catch (err) {
       setDeals(snapshot);
       addToast(err.response?.data?.error || 'Failed to update paid status', 'error');
+    }
+  };
+
+  // Manual-gross deals only: gross_total_value has no PATCH field (it's only
+  // ever recomputed by POST/PUT via calculateDealFinancials), so this must go
+  // through the existing PUT route — untouched, same validation as DealForm.
+  // PUT overwrites the whole row, so line_items/contact_roles are fetched
+  // fresh first and resent unchanged; only manual_gross_value differs. PUT's
+  // response doesn't include the recomputed row, so a follow-up GET refreshes
+  // the derived financial fields — no formula is reimplemented here.
+  const handleGrossValueEdit = async (deal, newValue) => {
+    const parsed = newValue === null || newValue === '' ? null : Number(newValue);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
+      addToast('Gross value must be a non-negative number', 'error');
+      return;
+    }
+    if (parsed === (deal.manual_gross_value ?? null)) return;
+
+    const snapshot = deals;
+    setDeals(ds => ds.map(d => (d.id === deal.id
+      ? { ...d, manual_gross_value: parsed, gross_total_value: parsed ?? 0 }
+      : d)));
+
+    try {
+      const fullRes = await dealsApi.getById(deal.id);
+      const full = fullRes.data.data;
+      const payload = {
+        deal_name: full.deal_name,
+        reference_no: full.reference_no,
+        account_id: full.account_id,
+        business_unit: full.business_unit,
+        stage: full.stage,
+        deal_type: full.deal_type,
+        close_date: full.close_date,
+        contract_term_months: full.contract_term_months,
+        lead_source: full.lead_source,
+        next_action: full.next_action,
+        next_action_date: full.next_action_date,
+        description: full.description,
+        commission_override_amount: full.commission_override_amount,
+        manual_gross_value: parsed,
+        line_items: (full.line_items || []).map(item => ({
+          product_id: item.product_id || null,
+          product_name: item.product_name,
+          description: item.description || null,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          unit_type: item.unit_type || null,
+          is_recurring: item.is_recurring,
+          commission_pct: item.commission_pct,
+        })),
+        contact_roles: (full.contacts || []).map(c => ({ contact_id: Number(c.id), role: c.role })),
+      };
+
+      await dealsApi.update(deal.id, payload);
+      const refreshedRes = await dealsApi.getById(deal.id);
+      const refreshed = refreshedRes.data.data;
+      setDeals(ds => ds.map(d => (d.id === deal.id ? {
+        ...d,
+        manual_gross_value: refreshed.manual_gross_value,
+        gross_total_value: refreshed.gross_total_value,
+        monthly_recurring_revenue: refreshed.monthly_recurring_revenue,
+        commission_percentage: refreshed.commission_percentage,
+        commission_amount: refreshed.commission_amount,
+        total_contract_earnings: refreshed.total_contract_earnings,
+        weighted_value: refreshed.weighted_value,
+        commission_warning: refreshed.commission_warning,
+      } : d)));
+      addToast('Deal updated', 'success');
+    } catch (err) {
+      setDeals(snapshot);
+      addToast(err.response?.data?.error || 'Failed to update gross value', 'error');
     }
   };
 
@@ -363,7 +454,19 @@ export default function DealsList() {
                         {formatDate(r.close_date)}
                       </span>
                     </EditableCell>
-                    <Td className="text-right tabular-nums cell-strong">{formatCurrency(r.gross_total_value)}</Td>
+                    {hasManualGross(r) ? (
+                      <EditableCell
+                        type="number"
+                        value={r.manual_gross_value}
+                        onCommit={(v) => handleGrossValueEdit(r, v)}
+                      >
+                        <span className="ml-auto text-right tabular-nums cell-strong">{formatCurrency(r.gross_total_value)}</span>
+                      </EditableCell>
+                    ) : (
+                      <Td className="text-right tabular-nums cell-strong">
+                        <span title="Computed from line items — open the deal to edit">{formatCurrency(r.gross_total_value)}</span>
+                      </Td>
+                    )}
                     <Td className="text-right tabular-nums">{r.business_unit === 'ASC' ? formatMrr(r.monthly_recurring_revenue) : '—'}</Td>
                     <Td className="text-right tabular-nums font-semibold cell-blue">
                       <span className="inline-flex items-center gap-2 justify-end">
