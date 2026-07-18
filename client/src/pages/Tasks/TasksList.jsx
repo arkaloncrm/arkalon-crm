@@ -97,17 +97,28 @@ export default function TasksList() {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
+  // Toggle: completes an open task, reopens a Completed one (back to
+  // 'Not Started' with completed_at cleared). Optimistic with revert on error.
   const handleComplete = async (task, e) => {
     e.stopPropagation();
-    if (task.status === 'Completed') return;
+    const reopening = task.status === 'Completed';
     setCompleting(task.id);
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'Completed' } : t));
+    setTasks(prev => prev.map(t => t.id === task.id
+      ? { ...t, status: reopening ? 'Not Started' : 'Completed', completed_at: reopening ? null : t.completed_at }
+      : t));
     try {
-      await tasksApi.complete(task.id);
-      addToast('Task marked complete', 'success');
+      if (reopening) {
+        await tasksApi.update(task.id, { status: 'Not Started', completed_at: null });
+        addToast('Task reopened', 'success');
+      } else {
+        await tasksApi.complete(task.id);
+        addToast('Task completed', 'success');
+      }
     } catch {
-      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
-      addToast('Failed to complete task', 'error');
+      setTasks(prev => prev.map(t => t.id === task.id
+        ? { ...t, status: task.status, completed_at: task.completed_at }
+        : t));
+      addToast(reopening ? 'Failed to reopen task' : 'Failed to complete task', 'error');
     } finally {
       setCompleting(null);
     }
@@ -228,9 +239,9 @@ export default function TasksList() {
                   <div className="flex items-start gap-2">
                     <button
                       onClick={e => handleComplete(row, e)}
-                      disabled={done || completing === row.id}
-                      className={`flex-shrink-0 p-0.5 ${done ? 'text-green-500' : 'text-slate-300 hover:text-arkalon-blue'}`}
-                      aria-label="Mark complete"
+                      disabled={completing === row.id}
+                      className={`flex-shrink-0 p-0.5 ${done ? 'text-green-500 hover:text-slate-400' : 'text-slate-300 hover:text-arkalon-blue'}`}
+                      aria-label={done ? 'Reopen task' : 'Mark complete'}
                     >
                       {done ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                     </button>
@@ -292,8 +303,10 @@ export default function TasksList() {
                     <Td>
                       <button
                         onClick={e => handleComplete(row, e)}
-                        disabled={done || completing === row.id}
-                        className={`p-0.5 transition-colors ${done ? 'text-green-500' : 'text-slate-300 hover:text-arkalon-blue'}`}
+                        disabled={completing === row.id}
+                        className={`p-0.5 transition-colors ${done ? 'text-green-500 hover:text-slate-400' : 'text-slate-300 hover:text-arkalon-blue'}`}
+                        aria-label={done ? 'Reopen task' : 'Mark complete'}
+                        title={done ? 'Reopen task' : 'Mark complete'}
                       >
                         {done ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                       </button>
