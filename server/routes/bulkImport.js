@@ -43,6 +43,44 @@ function looksLikePhone(v) {
   return PHONE_CHARS_RE.test(v) && (v.match(/\d/g) || []).length >= 8;
 }
 
+// Research-sheet placeholder cells carry no data — treat them as empty so they
+// never pollute name/company classification. Matched case-insensitively on the
+// start of the cell; a "→" anywhere marks a call-route annotation, not data.
+const PLACEHOLDER_PREFIXES = [
+  'needs enrichment', 'not published', 'none found', 'none verifiable',
+  'contact form only', 'no phone', 'n/a', 'tbc', 'unknown', '-', '—',
+];
+
+function sanitiseCell(v) {
+  const t = String(v || '').trim();
+  if (!t) return '';
+  if (t.includes('→')) return '';
+  const lower = t.toLowerCase();
+  if (PLACEHOLDER_PREFIXES.some(p => lower.startsWith(p))) return '';
+  return t;
+}
+
+// A phone cell may hold several numbers ("+61 3 8677 3777 / +61 2 8088 0600")
+// or a trailing annotation ("1300 859 117 (switchboard)") — keep only the
+// first valid number, with trailing non-numeric text stripped.
+function extractPhone(v) {
+  if (looksLikePhone(v)) return v;
+  for (const part of v.split(/\s*(?:\/|,|;|\bor\b)\s*/i)) {
+    const t = part.trim();
+    if (looksLikePhone(t)) return t;
+    const m = t.match(/^\+?[\d\s().-]{7,}/);
+    if (m) {
+      const candidate = m[0].replace(/\D+$/, '').trim();
+      if (looksLikePhone(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+// Priority-tier tokens (T1, T2, …) sometimes sit between company and name in
+// research sheets — never real data, always ignored.
+const PRIORITY_TIER_RE = /^[a-z]\d{1,2}$/i;
+
 // First row is a header if it names columns rather than containing data —
 // e.g. "Name  Phone  Email" — i.e. keyword hit with no email and few digits.
 function isHeaderRow(line) {
@@ -71,8 +109,18 @@ function classifyFields(fields) {
 
   for (const f of fields) {
     if (!f) continue;
-    if (!email && looksLikeEmail(f)) { email = f; continue; }
-    if (!phone && looksLikePhone(f)) { phone = f; continue; }
+    if (looksLikeEmail(f)) {
+      // First email wins; a second one is a generic company inbox — discard.
+      if (!email) email = f;
+      continue;
+    }
+    const p = extractPhone(f);
+    if (p) {
+      // Likewise keep only the first phone-bearing cell.
+      if (!phone) phone = p;
+      continue;
+    }
+    if (PRIORITY_TIER_RE.test(f)) continue;
     rest.push(f);
   }
 
@@ -117,11 +165,19 @@ function parseRawText(rawText) {
 
     // Excel/Sheets paste is tab-separated; otherwise fall back to commas.
     const delim = line.includes('\t') ? '\t' : ',';
-    const fields = line.split(delim).map(f => f.trim());
+    const rawFields = line.split(delim).map(f => f.trim());
+    const fields = rawFields.map(sanitiseCell);
+    const hadPlaceholders = rawFields.some((f, idx) => f && !fields[idx]);
     const parsed = classifyFields(fields);
 
     if (!parsed.phone && !parsed.email) {
-      parseErrors.push({ line: i + 1, raw: line, reason: 'No phone or email found' });
+      parseErrors.push({
+        line: i + 1,
+        raw: line,
+        reason: hadPlaceholders
+          ? 'No usable phone or email (placeholders only)'
+          : 'No phone or email found',
+      });
       continue;
     }
 
