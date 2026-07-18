@@ -3,6 +3,7 @@ const { STAGE_MAP, calculateDealFinancials } = require('../../utils/dealFinancia
 const { parseNoteTask } = require('../../utils/parseNoteTask');
 const { auditCreate, auditUpdate } = require('../../utils/auditLog');
 const { resolveDateExpression, resolveDateTimeToUtc, pushDateByDuration } = require('../dateResolve');
+const { isPlausibleAuPhone, isCloseMatch, leadingWord } = require('../textMatch');
 const {
   DEAL_STAGES, DEAL_BUSINESS_UNITS, DEAL_TYPES,
   TASK_PRIORITIES, ACTIVITY_TYPES,
@@ -45,21 +46,63 @@ const ACCOUNT_REF = { table: 'accounts', nameExpr: 'name', label: 'Account' };
 const CONTACT_REF = { table: 'contacts', nameExpr: "(first_name || ' ' || last_name)", label: 'Contact' };
 const DEAL_REF = { table: 'deals', nameExpr: 'deal_name', label: 'Deal' };
 
+function createNewChoice(name) {
+  return { id: null, name: `Create new account "${name}"`, type: 'account', action: 'create_new' };
+}
+
 // Find-or-create resolution for accounts, used by create_deal / create_contact.
 // Never creates on this pass — only reports whether one would be created so
-// the confirmation card can say so.
-async function resolveOrProposeAccount(name) {
+// the confirmation card can say so. Pass { confirmNew: true } once Stuart has
+// explicitly confirmed creating a new account despite a near match — without
+// it, a near-match (e.g. "Informa Group" said vs "Informa Australia" on file)
+// is surfaced as a choice instead of silently proposed as a new account.
+async function resolveOrProposeAccount(name, { confirmNew = false } = {}) {
   if (!name) return { id: null, name: null, willCreate: false };
-  const r = await pool.query(P('SELECT id, name FROM accounts WHERE name ILIKE ? ORDER BY name LIMIT 10'), [`%${name}%`]);
-  if (r.rows.length === 0) return { id: null, name, willCreate: true };
-  if (r.rows.length === 1) return { id: r.rows[0].id, name: r.rows[0].name, willCreate: false };
-  const exactMatches = r.rows.filter(a => a.name.toLowerCase() === name.toLowerCase());
-  if (exactMatches.length === 1) return { id: exactMatches[0].id, name: exactMatches[0].name, willCreate: false };
-  return {
-    ambiguous: true,
-    matches: r.rows.map(a => ({ id: a.id, name: a.name, type: 'account' })),
-    message: `Multiple accounts match "${name}" — ask Stuart which one before continuing.`,
-  };
+
+  const substringRows = (await pool.query(
+    P('SELECT id, name FROM accounts WHERE name ILIKE ? ORDER BY name LIMIT 10'),
+    [`%${name}%`]
+  )).rows;
+
+  if (substringRows.length === 1) {
+    return { id: substringRows[0].id, name: substringRows[0].name, willCreate: false };
+  }
+
+  if (substringRows.length > 1) {
+    const exactMatches = substringRows.filter(a => a.name.toLowerCase() === name.toLowerCase());
+    if (exactMatches.length === 1) {
+      return { id: exactMatches[0].id, name: exactMatches[0].name, willCreate: false };
+    }
+    if (confirmNew) return { id: null, name, willCreate: true };
+    return {
+      ambiguous: true,
+      nearMatch: true,
+      matches: [...substringRows.map(a => ({ id: a.id, name: a.name, type: 'account' })), createNewChoice(name)],
+      message: `Multiple accounts match "${name}" — ask Stuart which one, or confirm creating a new account (confirm_new_account: true), before continuing.`,
+    };
+  }
+
+  // No substring match. Before proposing a brand-new account, check for a
+  // near-match by similarity/shared leading word — e.g. Stuart said "Informa
+  // Group" but "Informa Australia" is already on file — so a likely-duplicate
+  // account is never created without asking first.
+  if (!confirmNew) {
+    const word = leadingWord(name);
+    const candidates = word
+      ? (await pool.query(P('SELECT id, name FROM accounts WHERE name ILIKE ? LIMIT 25'), [`%${word}%`])).rows
+      : [];
+    const close = candidates.filter(a => isCloseMatch(name, a.name));
+    if (close.length > 0) {
+      return {
+        ambiguous: true,
+        nearMatch: true,
+        matches: [...close.map(a => ({ id: a.id, name: a.name, type: 'account' })), createNewChoice(name)],
+        message: `"${name}" isn't an exact match but is close to an existing account — ask Stuart which one, or confirm creating a new account (confirm_new_account: true), before continuing.`,
+      };
+    }
+  }
+
+  return { id: null, name, willCreate: true };
 }
 
 function businessUnitCompatible(recordBusinessUnit, actionBusinessUnit) {
@@ -73,7 +116,7 @@ function money(n) {
 // --- create_deal --------------------------------------------------------
 
 async function prepareCreateDeal(args) {
-  const { account_name, deal_name, value, stage, close_date, business_unit, deal_type, contract_term_months } = args || {};
+  const { account_name, deal_name, value, stage, close_date, business_unit, deal_type, contract_term_months, confirm_new_account } = args || {};
 
   if (!account_name) return { error: 'account_name is required' };
   if (!deal_name?.trim()) return { error: 'deal_name is required' };
@@ -99,7 +142,7 @@ async function prepareCreateDeal(args) {
     if (!resolvedCloseDate) return { error: `Could not resolve close_date "${close_date}"` };
   }
 
-  const account = await resolveOrProposeAccount(account_name);
+  const account = await resolveOrProposeAccount(account_name, { confirmNew: !!confirm_new_account });
   if (account.ambiguous) return account;
 
   const summary = {
@@ -209,15 +252,34 @@ async function executeCreateDeal(action, ctx) {
 // --- create_contact -------------------------------------------------------
 
 async function prepareCreateContact(args) {
-  const { first_name, last_name, account_name, business_unit, phone, mobile, email, title } = args || {};
+  const {
+    first_name, last_name, account_name, business_unit, phone, mobile, email, title,
+    confirm_new_account, event_account_name, confirm_new_event_account,
+  } = args || {};
 
   if (!last_name?.trim()) return { error: 'last_name is required' };
   if (!DEAL_BUSINESS_UNITS.includes(business_unit)) {
     return { error: `business_unit must be one of: ${DEAL_BUSINESS_UNITS.join(', ')}` };
   }
+  if (phone && !isPlausibleAuPhone(phone)) {
+    return { error: `Phone number "${phone}" doesn't look like a valid Australian number (10 digits starting 04, or +61 followed by 9 digits) — ask Stuart to repeat it rather than guessing digits.` };
+  }
+  if (mobile && !isPlausibleAuPhone(mobile)) {
+    return { error: `Mobile number "${mobile}" doesn't look like a valid Australian number (10 digits starting 04, or +61 followed by 9 digits) — ask Stuart to repeat it rather than guessing digits.` };
+  }
 
-  const account = account_name ? await resolveOrProposeAccount(account_name) : { id: null, name: null, willCreate: false };
+  const account = account_name
+    ? await resolveOrProposeAccount(account_name, { confirmNew: !!confirm_new_account })
+    : { id: null, name: null, willCreate: false };
   if (account.ambiguous) return account;
+
+  // Only resolved when the command actually mentioned an event/exhibition —
+  // never inferred or asked about otherwise (see toolDefinitions.js / system prompt).
+  let eventAccount = null;
+  if (event_account_name) {
+    eventAccount = await resolveOrProposeAccount(event_account_name, { confirmNew: !!confirm_new_event_account });
+    if (eventAccount.ambiguous) return eventAccount;
+  }
 
   const summary = {
     action: 'create_contact',
@@ -230,6 +292,8 @@ async function prepareCreateContact(args) {
     mobile: mobile || null,
     email: email || null,
     title: title || null,
+    event_account_name: eventAccount ? eventAccount.name : null,
+    event_account_will_be_created: eventAccount ? eventAccount.willCreate : null,
   };
 
   return {
@@ -248,6 +312,9 @@ async function prepareCreateContact(args) {
       mobile: mobile || null,
       email: email || null,
       title: title || null,
+      event_account_id: eventAccount ? eventAccount.id : null,
+      event_account_name: eventAccount ? eventAccount.name : null,
+      event_account_will_be_created: eventAccount ? eventAccount.willCreate : null,
     },
   };
 }
@@ -269,6 +336,18 @@ async function executeCreateContact(action, ctx) {
       }, ctx.userId);
     }
 
+    let eventAccountId = action.event_account_id;
+    if (action.event_account_will_be_created) {
+      const insertEventAcc = await client.query(
+        P('INSERT INTO accounts (name, business_unit, account_owner_id) VALUES (?, ?, ?) RETURNING id'),
+        [action.event_account_name, action.business_unit, ctx.userId]
+      );
+      eventAccountId = insertEventAcc.rows[0].id;
+      await auditCreate(client, 'account', eventAccountId, {
+        name: action.event_account_name, business_unit: action.business_unit, via: 'command_bar create_contact event find-or-create',
+      }, ctx.userId);
+    }
+
     const insert = await client.query(P(`
       INSERT INTO contacts (account_id, first_name, last_name, title, email, phone, mobile, business_unit, contact_owner_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -284,11 +363,25 @@ async function executeCreateContact(action, ctx) {
       account: action.account_name, email: action.email, mobile: action.mobile,
     }, ctx.userId);
 
+    // Dual-linking pattern (same as bulk import): the primary account stays
+    // the employer (contacts.account_id above); the event account is a
+    // separate contact_accounts junction row so both can be tracked.
+    if (eventAccountId && eventAccountId !== accountId) {
+      await client.query(P(`
+        INSERT INTO contact_accounts (contact_id, account_id, relationship)
+        VALUES (?, ?, 'event')
+        ON CONFLICT (contact_id, account_id) DO NOTHING
+      `), [contactId, eventAccountId]);
+      await auditCreate(client, 'contact', contactId, {
+        event_link: action.event_account_name, via: 'command_bar create_contact event link',
+      }, ctx.userId);
+    }
+
     await client.query('COMMIT');
     return {
       entity_type: 'contact',
       entity_id: contactId,
-      summary: `Created contact ${[action.first_name, action.last_name].filter(Boolean).join(' ')} (#${contactId})${action.account_name ? ` at ${action.account_name}` : ''}.`,
+      summary: `Created contact ${[action.first_name, action.last_name].filter(Boolean).join(' ')} (#${contactId})${action.account_name ? ` at ${action.account_name}` : ''}${action.event_account_name ? `, linked to ${action.event_account_name} (event)` : ''}.`,
     };
   } catch (err) {
     await client.query('ROLLBACK');

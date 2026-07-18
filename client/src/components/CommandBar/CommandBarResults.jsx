@@ -263,6 +263,7 @@ function summaryRows(summary) {
   const SKIP = new Set(['action']);
   const LABELS = {
     deal_name: 'Deal', account_name: 'Account', account_will_be_created: 'New account',
+    event_account_name: 'Event', event_account_will_be_created: 'New event account',
     business_unit: 'Business unit', deal_type: 'Deal type', stage: 'Stage', value: 'Value',
     close_date: 'Close date', contract_term_months: 'Contract term',
     first_name: 'First name', last_name: 'Last name', phone: 'Phone', mobile: 'Mobile',
@@ -279,7 +280,9 @@ function summaryRows(summary) {
 }
 
 function formatValue(key, value) {
-  if (key === 'account_will_be_created') return value ? 'Yes — will be created' : 'No — links to existing account';
+  if (key === 'account_will_be_created' || key === 'event_account_will_be_created') {
+    return value ? 'Yes — will be created' : 'No — links to existing account';
+  }
   if (key === 'contact_linked') return value ? 'Yes' : 'No — will remain unlinked';
   if (key === 'value') return money(value);
   if (key === 'changes' && typeof value === 'object') {

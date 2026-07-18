@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Arkalon CRM Express server",
   "main": "index.js",
+  "scripts": {
+    "test:commandbar": "node commandBar/__tests__/textMatch.test.js"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
