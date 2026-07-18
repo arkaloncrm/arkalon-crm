@@ -9,6 +9,11 @@ function isFiniteNonNegative(val) {
   return Number.isFinite(n) && n >= 0;
 }
 
+// unit_price may be negative (a discount line item) — quantity may not.
+function isFiniteNumber(val) {
+  return Number.isFinite(Number(val));
+}
+
 function isPositiveInteger(val) {
   const n = Number(val);
   return Number.isFinite(n) && Number.isInteger(n) && n > 0;
@@ -394,6 +399,16 @@ async function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
     }
   }
 
+  if (
+    safeBody.manual_gross_value !== null &&
+    safeBody.manual_gross_value !== undefined &&
+    String(safeBody.manual_gross_value).trim() !== ''
+  ) {
+    if (!isFiniteNonNegative(safeBody.manual_gross_value)) {
+      return { error: 'manual_gross_value must be a non-negative number' };
+    }
+  }
+
   if (safeBody.account_id) {
     const accountResult = await pool.query(
       P('SELECT id, business_unit FROM accounts WHERE id = ?'),
@@ -411,8 +426,8 @@ async function validateDealPayload(safeBody, rawLineItems, rawContactRoles) {
     if (!isFiniteNonNegative(item.quantity)) {
       return { error: `Line item ${i + 1}: quantity must be a non-negative number` };
     }
-    if (!isFiniteNonNegative(item.unit_price)) {
-      return { error: `Line item ${i + 1}: unit_price must be a non-negative number` };
+    if (!isFiniteNumber(item.unit_price)) {
+      return { error: `Line item ${i + 1}: unit_price must be a number` };
     }
 
     let resolvedItem = {
@@ -538,6 +553,11 @@ router.post('/', async (req, res) => {
       }
 
       const financials = calculateDealFinancials(safeBody, resolvedLineItems, context);
+      if (financials.gross_total_value < 0 || financials.monthly_recurring_revenue < 0) {
+        const err = new Error('Line items sum to a negative total — reduce the discount.');
+        err.statusCode = 400;
+        throw err;
+      }
       const result = await client.query(P(`
         INSERT INTO deals (
           deal_name, account_id, stage, probability, forecast_category,
@@ -590,7 +610,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ success: true, data: { id: dealId, commission_warning: commissionWarning } });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 
@@ -630,6 +650,11 @@ router.put('/:id', async (req, res) => {
       }
 
       const financials = calculateDealFinancials(safeBody, resolvedLineItems, context);
+      if (financials.gross_total_value < 0 || financials.monthly_recurring_revenue < 0) {
+        const err = new Error('Line items sum to a negative total — reduce the discount.');
+        err.statusCode = 400;
+        throw err;
+      }
       commissionWarning = financials.commission_warning;
 
       // Closing a deal stamps the close date to today (UTC) as the source of
@@ -701,7 +726,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({ success: true, data: { id, commission_warning: commissionWarning } });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 

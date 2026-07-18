@@ -751,7 +751,7 @@ export default function DealForm() {
                             </td>
                             <td className="py-2 pr-3">
                               <input
-                                type="number" min="0" step="0.01"
+                                type="number" step="0.01"
                                 className="w-full px-2 py-1.5 text-xs border border-arkalon-lightgrey rounded font-opensans focus:outline-none focus:ring-1 focus:ring-arkalon-blue/30"
                                 value={item.unit_price}
                                 onChange={e => updateLineItem(idx, 'unit_price', e.target.value)}
