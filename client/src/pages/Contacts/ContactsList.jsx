@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, MessageSquare } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare, UploadCloud } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
@@ -8,6 +8,7 @@ import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
 import { CardAction } from '../../components/UI/MobileCard.jsx';
 import SwipeableCard from '../../components/UI/SwipeableCard.jsx';
 import QuickNoteModal from '../../components/UI/QuickNoteModal.jsx';
+import BulkContactImportModal from '../../components/Contacts/BulkContactImportModal.jsx';
 import { LinkedInLink, CallLogPanel, LogMessagePanel } from '../../components/UI/CommLinks.jsx';
 import { contactsApi } from '../../api/contacts.js';
 import { accountsApi } from '../../api/accounts.js';
@@ -101,6 +102,7 @@ export default function ContactsList() {
   const [call, setCall] = useState(null);
   const [noteContact, setNoteContact] = useState(null);
   const [logMessageRecord, setLogMessageRecord] = useState(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   useEffect(() => {
     accountsApi.getAll().then(res => setAccounts(res.data.data || [])).catch(() => {});
@@ -205,8 +207,19 @@ export default function ContactsList() {
           <h2 className="font-montserrat font-bold text-arkalon-navy text-xl">Contacts</h2>
           <span className="bg-slate-100 text-slate-500 text-xs font-montserrat font-semibold px-2 py-0.5 rounded-full">{contacts.length}</span>
         </div>
-        <Button onClick={() => navigate('/contacts/new')}>+ New Contact</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setShowBulkImport(true)}>
+            <UploadCloud className="w-4 h-4" /> Bulk Import
+          </Button>
+          <Button onClick={() => navigate('/contacts/new')}>+ New Contact</Button>
+        </div>
       </div>
+
+      <BulkContactImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        onImported={fetchContacts}
+      />
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <input

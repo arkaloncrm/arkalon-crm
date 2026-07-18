@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Square, CheckSquare, Pencil, Trash2 } from 'lucide-react';
+import { Square, CheckSquare, Pencil, Trash2, Phone, UploadCloud } from 'lucide-react';
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
+import BulkContactImportModal from '../../components/Contacts/BulkContactImportModal.jsx';
 import { tasksApi } from '../../api/tasks.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { formatLocalDatetime, formatDate } from '../../utils/formatDate.js';
@@ -30,6 +31,35 @@ const BU_COLOURS = {
   'Simply Seated': 'bg-teal-100 text-teal-700',
 };
 
+// Dialable link for the linked contact's number (mobile preferred server-side).
+// Pill style on mobile for an easy PWA thumb target; plain link in the table.
+function TaskPhone({ phone, pill = false }) {
+  if (!phone) return null;
+  const href = `tel:${String(phone).replace(/[\s().-]/g, '')}`;
+  if (pill) {
+    return (
+      <a
+        href={href}
+        onClick={e => e.stopPropagation()}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-arkalon-blue text-sm font-semibold font-opensans active:bg-blue-100"
+      >
+        <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+        {phone}
+      </a>
+    );
+  }
+  return (
+    <a
+      href={href}
+      onClick={e => e.stopPropagation()}
+      className="inline-flex items-center gap-1 text-arkalon-blue hover:underline text-sm font-opensans whitespace-nowrap"
+    >
+      <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+      {phone}
+    </a>
+  );
+}
+
 function isOverdue(task) {
   if (!task.due_datetime || task.status === 'Completed') return false;
   const isoString = task.due_datetime.includes('T') ? task.due_datetime : task.due_datetime.replace(' ', 'T') + 'Z';
@@ -48,6 +78,7 @@ export default function TasksList() {
   const [buFilter, setBuFilter] = useState('');
   const [quickFilter, setQuickFilter] = useState(''); // 'due_today' | 'overdue' | ''
   const [completing, setCompleting] = useState(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const fetchTasks = useCallback(() => {
     setLoading(true);
@@ -118,8 +149,19 @@ export default function TasksList() {
             {filtered.length}
           </span>
         </div>
-        <Button onClick={() => navigate('/tasks/new')}>+ New Task</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setShowBulkImport(true)}>
+            <UploadCloud className="w-4 h-4" /> Bulk Import
+          </Button>
+          <Button onClick={() => navigate('/tasks/new')}>+ New Task</Button>
+        </div>
       </div>
+
+      <BulkContactImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        onImported={fetchTasks}
+      />
 
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <input
@@ -201,6 +243,11 @@ export default function TasksList() {
                     {row.status && <Badge className={STATUS_COLOURS[row.status] || 'bg-gray-100 text-gray-600'}>{row.status}</Badge>}
                     {row.business_unit && <Badge className={BU_COLOURS[row.business_unit] || 'bg-gray-100 text-gray-600'}>{row.business_unit}</Badge>}
                   </div>
+                  {row.contact_phone && (
+                    <div className="mt-2">
+                      <TaskPhone phone={row.contact_phone} pill />
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
                     <span className={`text-xs font-opensans truncate ${overdue ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
                       {row.due_datetime
@@ -230,6 +277,7 @@ export default function TasksList() {
                 <Th>Priority</Th>
                 <Th>Status</Th>
                 <Th>Due</Th>
+                <Th>Phone</Th>
                 <Th>Related To</Th>
                 <Th>Business Unit</Th>
                 <Th></Th>
@@ -275,6 +323,9 @@ export default function TasksList() {
                           {row.is_all_day ? formatDate(row.due_datetime) : formatLocalDatetime(row.due_datetime)}
                         </span>
                       ) : '—'}
+                    </Td>
+                    <Td>
+                      {row.contact_phone ? <TaskPhone phone={row.contact_phone} /> : '—'}
                     </Td>
                     <Td className="text-slate-500">
                       {row.contact_name || row.lead_company || row.account_name || row.deal_name || '—'}

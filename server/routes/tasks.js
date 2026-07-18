@@ -26,6 +26,7 @@ const BASE_SELECT = `
     tasks.updated_at,
     leads.company AS lead_company,
     contacts.first_name || ' ' || contacts.last_name AS contact_name,
+    COALESCE(NULLIF(contacts.mobile, ''), contacts.phone) AS contact_phone,
     accounts.name AS account_name,
     deals.deal_name AS deal_name,
     users.name AS owner_name

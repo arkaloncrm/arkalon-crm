@@ -52,11 +52,18 @@ router.get('/:id', async (req, res) => {
     const account = accountResult.rows[0];
     if (!account) return res.status(404).json({ success: false, error: 'Account not found' });
 
+    // Primary-linked contacts plus event-linked ones from contact_accounts
+    // (bulk import links exhibition attendees there). UNION dedups overlaps.
     const { rows: contacts } = await pool.query(P(`
       SELECT id, first_name, last_name, title, email, phone
       FROM contacts WHERE account_id = ?
+      UNION
+      SELECT c.id, c.first_name, c.last_name, c.title, c.email, c.phone
+      FROM contacts c
+      JOIN contact_accounts ca ON ca.contact_id = c.id
+      WHERE ca.account_id = ?
       ORDER BY last_name ASC, first_name ASC
-    `), [req.params.id]);
+    `), [req.params.id, req.params.id]);
 
     const { rows: deals } = await pool.query(P(`
       SELECT id, deal_name, stage, gross_total_value, close_date, business_unit

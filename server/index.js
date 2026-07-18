@@ -7,6 +7,7 @@ const { runMigration: migration004 } = require('./database/migrations/004_deals_
 const { runMigration: migration006 } = require('./database/migrations/006_products_columns');
 const { runMigration: migration007 } = require('./database/migrations/007_accounts_priority_flag');
 const { runMigration: migration008 } = require('./database/migrations/008_deals_commission_paid');
+const { runMigration: migration009 } = require('./database/migrations/009_contact_accounts');
 const authRouter = require('./auth/authRouter');
 const { authMiddleware } = require('./auth/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
@@ -14,6 +15,7 @@ const errorHandler = require('./middleware/errorHandler');
 const leadsRouter = require('./routes/leads');
 const contactsRouter = require('./routes/contacts');
 const contactImportRouter = require('./routes/contactImport');
+const bulkImportRouter = require('./routes/bulkImport');
 const accountsRouter = require('./routes/accounts');
 const dealsRouter = require('./routes/deals');
 const productsRouter = require('./routes/products');
@@ -51,6 +53,7 @@ app.use('/api/leads', authMiddleware, leadsRouter);
 // registered before the JWT-protected /api/contacts mount to win the route match.
 app.use('/api/contacts/import', contactImportRouter);
 app.use('/api/contacts', authMiddleware, contactsRouter);
+app.use('/api/bulk-import', authMiddleware, bulkImportRouter);
 app.use('/api/accounts', authMiddleware, accountsRouter);
 app.use('/api/deals', authMiddleware, dealsRouter);
 app.use('/api/products', authMiddleware, productsRouter);
@@ -83,6 +86,7 @@ async function start() {
   await migration006();
   await migration007();
   await migration008();
+  await migration009();
 
   app.listen(PORT, () => {
     console.log('');
