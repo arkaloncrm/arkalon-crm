@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Terminal, X, Send, Loader2 } from 'lucide-react';
+import { Sparkles, X, Send, Loader2 } from 'lucide-react';
 import { sendCommand, confirmCommand } from '../../api/command.js';
 import { ResultBlock, ConfirmationCard } from './CommandBarResults.jsx';
 
@@ -167,7 +167,7 @@ export default function CommandBar({ isOpen, onClose, onOpen }) {
       <div className="relative bg-arkalon-offwhite w-full h-[100dvh] sm:h-auto sm:max-h-[78vh] sm:w-full sm:max-w-2xl sm:rounded-lg shadow-xl flex flex-col overflow-hidden [padding-top:env(safe-area-inset-top)]">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-arkalon-lightgrey flex-shrink-0">
-          <Terminal className="w-5 h-5 text-arkalon-blue flex-shrink-0" />
+          <Sparkles className="w-5 h-5 text-arkalon-blue flex-shrink-0" />
           <h2 className="font-montserrat font-bold text-arkalon-navy text-sm flex-1">Command Bar</h2>
           <button onClick={handleClose} aria-label="Close" className="p-1.5 text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />

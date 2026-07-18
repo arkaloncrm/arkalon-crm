@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, User, Settings, LogOut, Search, Menu, ArrowLeft, Terminal } from 'lucide-react';
+import { Bell, ChevronDown, User, Settings, LogOut, Search, Menu, ArrowLeft, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import QuickCreateMenu from '../QuickCreate/QuickCreateMenu.jsx';
 import api from '../../api/axios.js';
@@ -267,12 +267,12 @@ export default function TopBar({ onMenuClick = () => {}, onCommandBarOpen = () =
         <button
           type="button"
           onClick={onCommandBarOpen}
-          className="flex-shrink-0 flex items-center gap-1.5 text-slate-500 hover:text-arkalon-navy transition-colors p-2 sm:px-2.5 sm:py-1.5 sm:border sm:border-arkalon-lightgrey sm:rounded sm:bg-arkalon-offwhite"
+          className="flex-shrink-0 flex items-center gap-1.5 text-white bg-gradient-to-br from-arkalon-blue to-arkalon-purple rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-150 p-2 sm:pl-2.5 sm:pr-3 sm:py-1.5"
           aria-label="Open Command Bar"
           title="Command Bar (Ctrl+K)"
         >
-          <Terminal className="w-5 h-5 sm:w-4 sm:h-4" />
-          <span className="hidden sm:inline text-xs font-opensans text-slate-400">Ctrl K</span>
+          <Sparkles className="w-5 h-5 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline text-xs font-opensans text-white/80">Ctrl K</span>
         </button>
 
         {/* Quick create */}
