@@ -81,6 +81,9 @@ function extractPhone(v) {
 // research sheets — never real data, always ignored.
 const PRIORITY_TIER_RE = /^[a-z]\d{1,2}$/i;
 
+// A field containing one of these words is a job title, wherever it appears.
+const TITLE_RE = /\b(manager|director|head|officer|ceo|founder|vp|president|lead|coordinator|specialist)\b/i;
+
 // First row is a header if it names columns rather than containing data —
 // e.g. "Name  Phone  Email" — i.e. keyword hit with no email and few digits.
 function isHeaderRow(line) {
@@ -124,26 +127,39 @@ function classifyFields(fields) {
     rest.push(f);
   }
 
+  // Job-title fields must never pollute the name/company slots — pull them out
+  // first (a title can sit anywhere, even directly after the name), then any
+  // leftover text beyond company + name is also a title, never a name suffix.
+  const titles = rest.filter(f => TITLE_RE.test(f));
+  const nonTitles = rest.filter(f => !TITLE_RE.test(f));
+
   let company = null;
   let name = { first_name: null, last_name: null };
 
-  if (rest.length === 1) {
-    name = splitName(rest[0]);
-  } else if (rest.length === 2) {
+  if (nonTitles.length === 1) {
+    name = splitName(nonTitles[0]);
+  } else if (nonTitles.length === 2) {
     // "First, Last" vs "Company, First Last": a multi-word second field means
     // the first field is the company; two single words are a split name.
-    if (/\s/.test(rest[1])) {
-      company = rest[0];
-      name = splitName(rest[1]);
+    if (/\s/.test(nonTitles[1])) {
+      company = nonTitles[0];
+      name = splitName(nonTitles[1]);
     } else {
-      name = { first_name: rest[0], last_name: rest[1] };
+      name = { first_name: nonTitles[0], last_name: nonTitles[1] };
     }
-  } else if (rest.length >= 3) {
-    company = rest[0];
-    name = splitName(rest.slice(1).join(' '));
+  } else if (nonTitles.length >= 3) {
+    company = nonTitles[0];
+    name = splitName(nonTitles[1]);
+    titles.push(...nonTitles.slice(2));
   }
 
-  return { company, ...name, phone: phone ? phone.trim() : null, email: email ? email.trim().toLowerCase() : null };
+  return {
+    company,
+    ...name,
+    title: titles.length ? titles.join(', ') : null,
+    phone: phone ? phone.trim() : null,
+    email: email ? email.trim().toLowerCase() : null,
+  };
 }
 
 function parseRawText(rawText) {
@@ -301,6 +317,7 @@ router.post('/preview', async (req, res) => {
       first_name: r.first_name,
       last_name: r.last_name,
       company: r.company,
+      title: r.title,
       phone: r.phone,
       email: r.email,
       priority_order: i + 1,
@@ -361,7 +378,7 @@ async function findOrCreateAccount(client, name, ownerId) {
 
 router.post('/confirm', async (req, res) => {
   try {
-    const { session_id, skip_row_ids, row_order, create_tasks, task_due_date } = req.body;
+    const { session_id, skip_row_ids, row_order, create_tasks, task_due_date, task_due_time } = req.body;
 
     const session = session_id ? sessions.get(session_id) : null;
     if (!session || Date.now() - session.createdAt > SESSION_TTL_MS) {
@@ -399,6 +416,15 @@ router.post('/confirm', async (req, res) => {
       return res.status(400).json({ success: false, error: 'task_due_date must be a valid YYYY-MM-DD date' });
     }
 
+    // Task time in Sydney local, "HH:mm"; malformed input falls back to 09:00.
+    let dueHour = 9;
+    let dueMinute = 0;
+    const timeMatch = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(task_due_time || '').trim());
+    if (timeMatch) {
+      dueHour = Number(timeMatch[1]);
+      dueMinute = Number(timeMatch[2]);
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -430,13 +456,13 @@ router.post('/confirm', async (req, res) => {
         const lastName = row.last_name || row.first_name || '(Imported)';
 
         const contactInsert = await client.query(P(`
-          INSERT INTO contacts (account_id, first_name, last_name, email, phone, mobile,
+          INSERT INTO contacts (account_id, first_name, last_name, title, email, phone, mobile,
             business_unit, contact_owner_id)
-          VALUES (?, ?, ?, ?, ?, ?, 'Simply Seated', ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'Simply Seated', ?)
           RETURNING id
         `), [
           employer ? employer.id : exhibition.id,
-          row.first_name, lastName, row.email,
+          row.first_name, lastName, row.title || null, row.email,
           isMobile ? null : row.phone,
           isMobile ? row.phone : null,
           req.user.id,
@@ -459,10 +485,10 @@ router.post('/confirm', async (req, res) => {
         `), [contactId, exhibition.id, session.relationship]);
 
         if (makeTasks) {
-          // Stagger due times by i seconds past 09:00 Sydney so the calling
-          // list's due_datetime sort preserves the chosen priority order
-          // (all still display as ~9:00 am).
-          const dueUtc = sydneyDateAtHourUtc(dueDate, 9, Math.floor(i / 60), i % 60);
+          // Stagger due times by i seconds past the chosen Sydney time so the
+          // calling list's due_datetime sort preserves the priority order
+          // (all still display as the same minute).
+          const dueUtc = sydneyDateAtHourUtc(dueDate, dueHour, dueMinute, i);
           const name = [row.first_name, lastName].filter(Boolean).join(' ');
           await client.query(P(`
             INSERT INTO tasks (subject, status, priority, due_datetime, is_all_day,

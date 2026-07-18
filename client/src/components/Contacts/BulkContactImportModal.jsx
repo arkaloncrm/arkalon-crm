@@ -105,6 +105,7 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
   const [rows, setRows] = useState([]);
   const [skippedIds, setSkippedIds] = useState(new Set());
   const [dueDate, setDueDate] = useState(sydneyTomorrow());
+  const [dueTime, setDueTime] = useState('09:00');
   const [createTasks, setCreateTasks] = useState(true);
   const [importLoading, setImportLoading] = useState(false);
 
@@ -126,6 +127,7 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
     setRows([]);
     setSkippedIds(new Set());
     setDueDate(sydneyTomorrow());
+    setDueTime('09:00');
     setCreateTasks(true);
     setResult(null);
   };
@@ -184,6 +186,7 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
         row_order: rows.filter(r => !skippedIds.has(r.row_id)).map(r => r.row_id),
         create_tasks: createTasks,
         task_due_date: dueDate,
+        task_due_time: dueTime,
       });
       setResult(res.data);
       setStep(3);
@@ -311,7 +314,11 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
                         <td className="px-2 py-1.5 text-arkalon-navy font-semibold whitespace-nowrap">
                           {[r.first_name, r.last_name].filter(Boolean).join(' ') || '—'}
                           {r.warm && <Sparkles className="inline w-3.5 h-3.5 ml-1 text-amber-500" title="Known name — has history in CRM" />}
-                          {r.company && <span className="block text-xs font-normal text-slate-400">{r.company}</span>}
+                          {(r.company || r.title) && (
+                            <span className="block text-xs font-normal text-slate-400">
+                              {[r.title, r.company].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap">{r.phone || '—'}</td>
                         <td className="px-2 py-1.5 text-slate-600">{r.email || '—'}</td>
@@ -373,7 +380,13 @@ export default function BulkContactImportModal({ isOpen, onClose, onImported }) 
                   onChange={e => setDueDate(e.target.value)}
                   className="px-3 py-1.5 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
                 />
-                <span className="text-xs text-slate-400 font-opensans">9:00 am Sydney</span>
+                <input
+                  type="time"
+                  value={dueTime}
+                  onChange={e => setDueTime(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-arkalon-lightgrey rounded bg-white font-opensans focus:outline-none focus:ring-2 focus:ring-arkalon-blue/30"
+                />
+                <span className="text-xs text-slate-400 font-opensans">Sydney time</span>
               </div>
             )}
           </div>
