@@ -4,6 +4,8 @@ import { Square, CheckSquare, Pencil, Trash2, Phone, UploadCloud } from 'lucide-
 import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
+import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import SelectionActionBar from '../../components/UI/SelectionActionBar.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import BulkContactImportModal from '../../components/Contacts/BulkContactImportModal.jsx';
@@ -85,6 +87,9 @@ export default function TasksList() {
   const [completing, setCompleting] = useState(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [call, setCall] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   const fetchTasks = useCallback(() => {
     setLoading(true);
@@ -159,6 +164,23 @@ export default function TasksList() {
       setTasks(prev => prev.filter(t => t.id !== id));
     } catch {
       addToast('Failed to delete task', 'error');
+    }
+  };
+
+  // Tasks have no dependent records, so the bulk route is a plain batched
+  // delete — still transactional (all-or-nothing) server-side.
+  const handleBulkDelete = async () => {
+    setBulkDeleteLoading(true);
+    try {
+      const res = await tasksApi.bulkDelete(selectedIds);
+      addToast(`${res.data.data.deleted} task(s) deleted`, 'success');
+      setSelectedIds([]);
+      setBulkDeleteConfirm(false);
+      fetchTasks();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Failed to delete tasks', 'error');
+    } finally {
+      setBulkDeleteLoading(false);
     }
   };
 
@@ -242,6 +264,12 @@ export default function TasksList() {
         ))}
       </div>
 
+      <SelectionActionBar
+        count={selectedIds.length}
+        onDelete={() => setBulkDeleteConfirm(true)}
+        onClear={() => setSelectedIds([])}
+      />
+
       {loading ? (
         <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 text-center text-slate-400 font-opensans text-sm">Loading…</div>
       ) : filtered.length === 0 ? (
@@ -309,6 +337,14 @@ export default function TasksList() {
           <Table>
             <Thead>
               <tr>
+                <Th style={{ width: 36 }}>
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={selectedIds.length === filtered.length && filtered.length > 0}
+                    onChange={(e) => setSelectedIds(e.target.checked ? filtered.map(r => r.id) : [])}
+                  />
+                </Th>
                 <Th style={{ width: 36 }}></Th>
                 <Th>Subject</Th>
                 <Th>Priority</Th>
@@ -326,6 +362,17 @@ export default function TasksList() {
                 const overdue = isOverdue(row);
                 return (
                   <Tr key={row.id} className="cursor-pointer" onClick={() => navigate(`/tasks/${row.id}/edit`)}>
+                    <Td>
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        checked={selectedIds.includes(row.id)}
+                        onClick={e => e.stopPropagation()}
+                        onChange={(e) => setSelectedIds(prev =>
+                          e.target.checked ? [...prev, row.id] : prev.filter(id => id !== row.id)
+                        )}
+                      />
+                    </Td>
                     <Td>
                       <button
                         onClick={e => handleComplete(row, e)}
@@ -400,6 +447,15 @@ export default function TasksList() {
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={bulkDeleteConfirm}
+        onClose={() => setBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title={`Delete ${selectedIds.length} Task${selectedIds.length === 1 ? '' : 's'}?`}
+        message={`This will permanently delete ${selectedIds.length} task(s). No other records are affected. This cannot be undone.`}
+        loading={bulkDeleteLoading}
+      />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />
     </div>

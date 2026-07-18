@@ -5,6 +5,7 @@ import Button from '../../components/UI/Button.jsx';
 import Badge from '../../components/UI/Badge.jsx';
 import EmptyState from '../../components/UI/EmptyState.jsx';
 import ConfirmDialog from '../../components/UI/ConfirmDialog.jsx';
+import SelectionActionBar from '../../components/UI/SelectionActionBar.jsx';
 import { CardAction } from '../../components/UI/MobileCard.jsx';
 import SwipeableCard from '../../components/UI/SwipeableCard.jsx';
 import QuickNoteModal from '../../components/UI/QuickNoteModal.jsx';
@@ -100,6 +101,8 @@ export default function ContactsList() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   const [openSwipeId, setOpenSwipeId] = useState(null);
   const [call, setCall] = useState(null);
@@ -151,17 +154,21 @@ export default function ContactsList() {
     }
   };
 
+  // Transactional (all-or-nothing) via the bulk-delete route — same cascade
+  // as single delete (notes/activities/tasks removed, converted-lead links cleared).
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Delete ${selectedIds.length} record(s)? This cannot be undone.`)) return;
-    // allSettled — attempt every delete even if one fails; always refresh afterwards
-    const outcomes = await Promise.allSettled(selectedIds.map(id => contactsApi.delete(id)));
-    const deleted = outcomes.filter(o => o.status === 'fulfilled').length;
-    const failed = outcomes.length - deleted;
-    setSelectedIds([]);
-    fetchContacts();
-    if (failed === 0) addToast(`${deleted} record(s) deleted`, 'success');
-    else if (deleted === 0) addToast(`Could not delete ${failed} record(s)`, 'error');
-    else addToast(`${deleted} deleted · ${failed} could not be deleted`, 'error');
+    setBulkDeleteLoading(true);
+    try {
+      const res = await contactsApi.bulkDelete(selectedIds);
+      addToast(`${res.data.data.deleted} contact(s) deleted`, 'success');
+      setSelectedIds([]);
+      setBulkDeleteConfirm(false);
+      fetchContacts();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Failed to delete contacts', 'error');
+    } finally {
+      setBulkDeleteLoading(false);
+    }
   };
 
   const handleInlineEdit = async (contact, field, value) => {
@@ -253,16 +260,13 @@ export default function ContactsList() {
             Clear filters
           </button>
         )}
-        {selectedIds.length > 0 && (
-          <button
-            onClick={handleBulkDelete}
-            className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
-          >
-            <Trash2 size={14} />
-            Delete {selectedIds.length} selected
-          </button>
-        )}
       </div>
+
+      <SelectionActionBar
+        count={selectedIds.length}
+        onDelete={() => setBulkDeleteConfirm(true)}
+        onClear={() => setSelectedIds([])}
+      />
 
       {loading ? (
         <div className="bg-white border border-arkalon-lightgrey rounded-lg p-8 space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
@@ -440,6 +444,15 @@ export default function ContactsList() {
         title="Delete Contact?"
         message={`Delete "${deleteTarget?.first_name} ${deleteTarget?.last_name}"? This action cannot be undone.`}
         loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        isOpen={bulkDeleteConfirm}
+        onClose={() => setBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title={`Delete ${selectedIds.length} Contact${selectedIds.length === 1 ? '' : 's'}?`}
+        message={`This will permanently delete ${selectedIds.length} contact(s) along with their notes, activities, and tasks. Any leads converted into these contacts will lose that link. This cannot be undone.`}
+        loading={bulkDeleteLoading}
       />
 
       <CallLogPanel call={call} onClose={() => setCall(null)} />

@@ -7,4 +7,5 @@ export const tasksApi = {
   update: (id, data) => api.put(`/tasks/${id}`, data),
   delete: (id) => api.delete(`/tasks/${id}`),
   complete: (id) => api.patch(`/tasks/${id}/complete`),
+  bulkDelete: (ids) => api.post('/tasks/bulk-delete', { ids }),
 };

@@ -183,6 +183,49 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+const BULK_DELETE_CAP = 100;
+
+// POST /api/leads/bulk-delete — same cascade as DELETE /:id, batched and
+// transactional (all-or-nothing). Body: { ids: number[] }, capped at 100.
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+    }
+    if (ids.length > BULK_DELETE_CAP) {
+      return res.status(400).json({ success: false, error: `Cannot delete more than ${BULK_DELETE_CAP} leads at once` });
+    }
+    const intIds = [...new Set(ids.map(Number))].filter(Number.isInteger);
+    if (intIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must contain valid lead IDs' });
+    }
+
+    const client = await pool.connect();
+    let deleted = 0;
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM notes WHERE lead_id = ANY($1)', [intIds]);
+      await client.query('UPDATE activities SET lead_id = NULL WHERE lead_id = ANY($1)', [intIds]);
+      await client.query('UPDATE tasks SET lead_id = NULL WHERE lead_id = ANY($1)', [intIds]);
+      await client.query('UPDATE deals SET converted_from_lead_id = NULL WHERE converted_from_lead_id = ANY($1)', [intIds]);
+      await client.query('UPDATE research_queue SET converted_lead_id = NULL WHERE converted_lead_id = ANY($1)', [intIds]);
+      const result = await client.query('DELETE FROM leads WHERE id = ANY($1)', [intIds]);
+      deleted = result.rowCount;
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({ success: true, data: { deleted } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/leads/:id/convert
 router.post('/:id/convert', async (req, res) => {
   try {

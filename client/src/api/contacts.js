@@ -6,4 +6,5 @@ export const contactsApi = {
   create: (data) => api.post('/contacts', data),
   update: (id, data) => api.put(`/contacts/${id}`, data),
   delete: (id) => api.delete(`/contacts/${id}`),
+  bulkDelete: (ids) => api.post('/contacts/bulk-delete', { ids }),
 };

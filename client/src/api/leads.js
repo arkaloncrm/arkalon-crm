@@ -7,4 +7,5 @@ export const leadsApi = {
   update: (id, data) => api.put(`/leads/${id}`, data),
   delete: (id) => api.delete(`/leads/${id}`),
   convert: (id, data) => api.post(`/leads/${id}/convert`, data),
+  bulkDelete: (ids) => api.post('/leads/bulk-delete', { ids }),
 };
