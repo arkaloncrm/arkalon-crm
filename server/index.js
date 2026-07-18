@@ -8,6 +8,7 @@ const { runMigration: migration006 } = require('./database/migrations/006_produc
 const { runMigration: migration007 } = require('./database/migrations/007_accounts_priority_flag');
 const { runMigration: migration008 } = require('./database/migrations/008_deals_commission_paid');
 const { runMigration: migration009 } = require('./database/migrations/009_contact_accounts');
+const { runMigration: migration010 } = require('./database/migrations/010_command_bar');
 const authRouter = require('./auth/authRouter');
 const { authMiddleware } = require('./auth/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
@@ -32,6 +33,7 @@ const myDayRouter = require('./routes/myDay');
 const emailRouter = require('./routes/email');
 const googleAuthRouter = require('./routes/googleAuth');
 const driveRouter = require('./routes/driveAttachments');
+const commandRouter = require('./routes/command');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -68,6 +70,7 @@ app.use('/api/scan', authMiddleware, scanRouter);
 app.use('/api/my-day', authMiddleware, myDayRouter);
 app.use('/api/google', authMiddleware, googleAuthRouter);
 app.use('/api/drive', authMiddleware, driveRouter);
+app.use('/api/command', authMiddleware, commandRouter);
 
 // Serve the built React client in production (Railway single-service deploy)
 if (process.env.NODE_ENV === 'production') {
@@ -87,6 +90,7 @@ async function start() {
   await migration007();
   await migration008();
   await migration009();
+  await migration010();
 
   app.listen(PORT, () => {
     console.log('');
