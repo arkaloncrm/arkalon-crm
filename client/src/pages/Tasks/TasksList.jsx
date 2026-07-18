@@ -7,6 +7,7 @@ import EmptyState from '../../components/UI/EmptyState.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/UI/Table.jsx';
 import MobileCard, { CardAction } from '../../components/UI/MobileCard.jsx';
 import BulkContactImportModal from '../../components/Contacts/BulkContactImportModal.jsx';
+import { CallLogPanel } from '../../components/UI/CommLinks.jsx';
 import { tasksApi } from '../../api/tasks.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { formatLocalDatetime, formatDate } from '../../utils/formatDate.js';
@@ -33,14 +34,17 @@ const BU_COLOURS = {
 
 // Dialable link for the linked contact's number (mobile preferred server-side).
 // Pill style on mobile for an easy PWA thumb target; plain link in the table.
-function TaskPhone({ phone, pill = false }) {
+// The tel: href dials natively; onCall additionally opens the shared
+// call-logging panel (CommLinks.jsx), same as the contact/lead list phone links.
+function TaskPhone({ phone, pill = false, onCall }) {
   if (!phone) return null;
   const href = `tel:${String(phone).replace(/[\s().-]/g, '')}`;
+  const handleClick = e => { e.stopPropagation(); onCall?.(); };
   if (pill) {
     return (
       <a
         href={href}
-        onClick={e => e.stopPropagation()}
+        onClick={handleClick}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-arkalon-blue text-sm font-semibold font-opensans active:bg-blue-100"
       >
         <Phone className="w-3.5 h-3.5 flex-shrink-0" />
@@ -51,7 +55,7 @@ function TaskPhone({ phone, pill = false }) {
   return (
     <a
       href={href}
-      onClick={e => e.stopPropagation()}
+      onClick={handleClick}
       className="inline-flex items-center gap-1 text-arkalon-blue hover:underline text-sm font-opensans whitespace-nowrap"
     >
       <Phone className="w-3.5 h-3.5 flex-shrink-0" />
@@ -79,6 +83,7 @@ export default function TasksList() {
   const [quickFilter, setQuickFilter] = useState(''); // 'due_today' | 'overdue' | ''
   const [completing, setCompleting] = useState(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [call, setCall] = useState(null);
 
   const fetchTasks = useCallback(() => {
     setLoading(true);
@@ -122,6 +127,26 @@ export default function TasksList() {
     } finally {
       setCompleting(null);
     }
+  };
+
+  // Opens the shared call-logging panel (CommLinks.jsx) for the task's linked
+  // contact — the tel: href on TaskPhone dials natively, this just layers the
+  // outcome-logging prompt on top, same flow as the Contacts/Leads lists.
+  // Passes contact_id/account_id/deal_id together so the logged Activity
+  // carries every link the task itself has.
+  const handleCall = (row) => {
+    const link = {};
+    if (row.contact_id) link.contact_id = row.contact_id;
+    if (row.account_id) link.account_id = row.account_id;
+    if (row.deal_id) link.deal_id = row.deal_id;
+    setCall({
+      phone: row.contact_phone,
+      name: row.contact_name || row.account_name || row.lead_company || 'Contact',
+      email: null,
+      businessUnit: row.business_unit,
+      link,
+      timestamp: new Date().toISOString(),
+    });
   };
 
   const handleDelete = async (id, e) => {
@@ -256,7 +281,7 @@ export default function TasksList() {
                   </div>
                   {row.contact_phone && (
                     <div className="mt-2">
-                      <TaskPhone phone={row.contact_phone} pill />
+                      <TaskPhone phone={row.contact_phone} pill onCall={() => handleCall(row)} />
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
@@ -338,7 +363,7 @@ export default function TasksList() {
                       ) : '—'}
                     </Td>
                     <Td>
-                      {row.contact_phone ? <TaskPhone phone={row.contact_phone} /> : '—'}
+                      {row.contact_phone ? <TaskPhone phone={row.contact_phone} onCall={() => handleCall(row)} /> : '—'}
                     </Td>
                     <Td className="text-slate-500">
                       {row.contact_name || row.lead_company || row.account_name || row.deal_name || '—'}
@@ -374,6 +399,8 @@ export default function TasksList() {
           </div>
         </>
       )}
+
+      <CallLogPanel call={call} onClose={() => setCall(null)} />
     </div>
   );
 }
